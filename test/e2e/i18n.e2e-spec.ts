@@ -1,21 +1,12 @@
 import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { loadTestcontainersEnv } from '../helpers/load-testcontainers';
+import { bootstrapTestApp } from '../helpers/test-app';
 
 describe('i18n on errors (E2E)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    loadTestcontainersEnv();
-
-    const { AppModule } = await import('@/app.module');
-    const { setupApp } = await import('@/app.setup');
-
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication({ bufferLogs: true });
-    setupApp(app);
-    await app.init();
+    app = await bootstrapTestApp();
   });
 
   afterAll(async () => {

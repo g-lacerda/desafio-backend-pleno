@@ -1,0 +1,250 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4789-aaaa-orchestrator0001",
+    "name": "Order Orchestrator — Inbazz",
+    "description": "Coleção do desafio backend pleno (Inbazz). Atualizada a cada fase concluída.\n\n**Fase atual: 3 — Processamento Assíncrono.**\n\n**Como usar:**\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável `baseUrl` já está em `http://localhost:3001`.\n3. Suba a aplicação localmente: `docker compose up -d postgres redis && npm run start:dev`.\n4. Execute as requests.\n\n**Sobre o webhook (POST /webhooks/orders):**\n- O campo `idempotency_key` é gerado automaticamente via pre-request script (UUID novo por requisição).\n- O endpoint responde `202 Accepted` imediatamente; o enriquecimento (consulta de câmbio na AwesomeAPI) acontece em background via worker BullMQ.\n- Para ver o pedido evoluir de `RECEIVED` → `ENRICHING` → `ENRICHED`, use a variação `POST válido + observar enriquecimento` (envia 1 e dispara replay 2s depois).\n- Para forçar `FAILED_ENRICHMENT` + DLQ, envie a variação com `currency: \"XXX\"` (moeda não suportada → 4xx no provedor → falha imediata).\n\nA partir da Fase 4, será necessário usar API Key (`Authorization: Bearer <key>`) nos endpoints autenticados.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "description": "Endpoints de saúde do serviço.",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "Verifica se o serviço, o Postgres e o Redis estão operacionais."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "description": "Endpoint público invocado por sistemas externos (e-commerce, marketplaces, gateways).",
+      "item": [
+        {
+          "name": "POST /webhooks/orders — payload válido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Gera UUIDs novos para garantir idempotência fresca a cada chamada.",
+                  "pm.variables.set('orderId', 'ext-' + pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8));",
+                  "pm.variables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": {\n    \"email\": \"user@example.com\",\n    \"name\": \"Ana Silva\"\n  },\n  \"items\": [\n    { \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }\n  ],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Recebe um pedido válido. Esperado: `202 Accepted` com o pedido persistido (status `RECEIVED`, total convertido para string com 2 decimais)."
+          }
+        },
+        {
+          "name": "POST /webhooks/orders — replay (mesma chave + payload)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Use uma idempotency_key fixa para demonstrar replay.",
+                  "pm.variables.set('idemKey', 'demo-replay-fixed-key-001');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": {\n    \"email\": \"user@example.com\",\n    \"name\": \"Ana Silva\"\n  },\n  \"items\": [\n    { \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }\n  ],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Envie esta requisição **2 vezes**. A segunda devolve a mesma resposta da primeira (replay byte-a-byte) sem criar pedido duplicado."
+          }
+        },
+        {
+          "name": "POST /webhooks/orders — hash divergente (422)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": {\n    \"email\": \"OUTRO-EMAIL@example.com\",\n    \"name\": \"Outro Cliente\"\n  },\n  \"items\": [\n    { \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }\n  ],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"demo-replay-fixed-key-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Reusa a mesma `idempotency_key` do replay anterior, mas com **payload diferente** (email diferente). Esperado: `422 Unprocessable Entity` com mensagem indicando reuso indevido."
+          }
+        },
+        {
+          "name": "POST /webhooks/orders — payload inválido (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"ext-invalid\",\n  \"customer\": {\n    \"email\": \"not-an-email\",\n    \"name\": \"Ana\"\n  },\n  \"items\": [],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"any-key-here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Email inválido + items vazio. Esperado: `400 Bad Request` com lista de erros de validação."
+          }
+        },
+        {
+          "name": "POST /webhooks/orders — moeda inválida (vai pra DLQ)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('orderId', 'ext-' + pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8));",
+                  "pm.variables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": {\n    \"email\": \"u@e.com\",\n    \"name\": \"Demo\"\n  },\n  \"items\": [\n    { \"sku\": \"X\", \"qty\": 1, \"unit_price\": 10 }\n  ],\n  \"currency\": \"XXX\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Webhook aceita (`202`), mas o worker tenta enriquecer com a moeda `XXX` que a AwesomeAPI não suporta → falha imediata sem retry → status `FAILED_ENRICHMENT` + job na DLQ. Inspecione o pedido com Bull Board (Fase 4) ou consultando direto no banco."
+          }
+        },
+        {
+          "name": "POST /webhooks/orders — payload inválido em pt-BR",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept-Language", "value": "pt-BR" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"ext-invalid-pt\",\n  \"customer\": {\n    \"email\": \"not-an-email\",\n    \"name\": \"Ana\"\n  },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 9.999 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"another-key\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Mostra mensagens de validação em pt-BR via `Accept-Language`. Esperado: 400 com mensagens em português."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documentação",
+      "item": [
+        {
+          "name": "GET /docs (Swagger UI)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/docs", "host": ["{{baseUrl}}"], "path": ["docs"] },
+            "description": "Abra no navegador para a UI interativa."
+          }
+        },
+        {
+          "name": "GET /docs-json (OpenAPI spec)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/docs-json",
+              "host": ["{{baseUrl}}"],
+              "path": ["docs-json"]
+            },
+            "description": "Spec OpenAPI 3.0 cru, importável em outras ferramentas."
+          }
+        }
+      ]
+    },
+    {
+      "name": "i18n (demonstração)",
+      "description": "Tradução automática via `Accept-Language` (en, pt-BR, es).",
+      "item": [
+        {
+          "name": "404 traduzido — Inglês",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept-Language", "value": "en" }],
+            "url": {
+              "raw": "{{baseUrl}}/rota-inexistente",
+              "host": ["{{baseUrl}}"],
+              "path": ["rota-inexistente"]
+            }
+          }
+        },
+        {
+          "name": "404 traduzido — Português (pt-BR)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept-Language", "value": "pt-BR" }],
+            "url": {
+              "raw": "{{baseUrl}}/rota-inexistente",
+              "host": ["{{baseUrl}}"],
+              "path": ["rota-inexistente"]
+            }
+          }
+        },
+        {
+          "name": "404 traduzido — Espanhol (es)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept-Language", "value": "es" }],
+            "url": {
+              "raw": "{{baseUrl}}/rota-inexistente",
+              "host": ["{{baseUrl}}"],
+              "path": ["rota-inexistente"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string",
+      "description": "URL base. Local: porta 3001 (via .env). Padrão do .env.example: 3000."
+    }
+  ]
+}

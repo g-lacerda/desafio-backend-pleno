@@ -39,8 +39,8 @@ O serviço atua como ponto de entrada confiável para pedidos externos, resolven
 ## Roadmap
 
 - [x] **Fase 1** — Fundação e infraestrutura (Docker, Prisma, i18n base, health check, Swagger).
-- [ ] **Fase 2** — Recebimento do pedido (webhook validado, idempotência via tabela dedicada, throttler).
-- [ ] **Fase 3** — Processamento assíncrono (worker, retry com backoff, DLQ, integração com AwesomeAPI).
+- [x] **Fase 2** — Recebimento do pedido (webhook validado, idempotência via tabela dedicada, throttler).
+- [x] **Fase 3** — Processamento assíncrono (worker, retry com backoff, DLQ, integração com AwesomeAPI).
 - [ ] **Fase 4** — Usuários, autenticação por API key, endpoints de consulta e administração.
 - [ ] **Fase 5** — Polimento, cobertura de testes, scripts de seed, coleções Postman, documentação final.
 
@@ -84,12 +84,29 @@ npm run start:dev
 
 A API estará disponível em `http://localhost:3000`.
 
-### Endpoints disponíveis (Fase 1)
+### Endpoints disponíveis
 
-| Endpoint | Descrição |
-|---|---|
-| `GET /health` | Health check (Postgres + Redis) |
-| `GET /docs` | Documentação Swagger interativa |
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/health` | Health check (Postgres + Redis) |
+| GET | `/docs` | Documentação Swagger interativa |
+| POST | `/webhooks/orders` | Recebe pedido, valida, garante idempotência, persiste como `RECEIVED` e enfileira para enrichment assíncrono |
+
+### Fluxo de processamento
+
+Após o webhook responder `202`, o pedido é enriquecido em background pelo worker:
+
+1. Worker consome o job da fila `enrichment-queue`.
+2. Marca o pedido como `ENRICHING`.
+3. Consulta a [AwesomeAPI](https://economia.awesomeapi.com.br) para obter a taxa de câmbio da moeda → BRL.
+4. Calcula o `total_converted` em centavos (BRL) usando aritmética em `BigInt`.
+5. Marca o pedido como `ENRICHED` com a taxa e o total convertido.
+
+Em caso de falha:
+
+- **Erros transientes** (timeout, 5xx): retry com backoff exponencial até `ENRICHMENT_MAX_ATTEMPTS` (default 3).
+- **Esgotamento de tentativas**: pedido vai para `FAILED_ENRICHMENT` e job é movido para `enrichment-dlq` para inspeção.
+- **Erros permanentes** (4xx, moeda inválida): falha imediata sem retry, mesma trajetória de DLQ.
 
 ### Rodar a aplicação inteira em Docker (opcional)
 

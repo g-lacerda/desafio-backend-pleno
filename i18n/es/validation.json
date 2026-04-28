@@ -1,2 +1,22 @@
 {
+  "isString": "{property} debe ser una cadena",
+  "isNotEmpty": "{property} no puede estar vacío",
+  "isEmail": "{property} debe ser un correo electrónico válido",
+  "isUuid": "{property} debe ser un UUID válido",
+  "isInt": "{property} debe ser un número entero",
+  "isNumber": "{property} debe ser un número",
+  "isPositive": "{property} debe ser un número positivo",
+  "isArray": "{property} debe ser una lista",
+  "arrayMinSize": "{property} debe contener al menos un elemento",
+  "isObject": "{property} debe ser un objeto",
+  "isCurrency": "{property} debe ser un código de moneda válido (3 letras)",
+  "min": "{property} no puede ser menor que {constraints.0}",
+  "max": "{property} no puede ser mayor que {constraints.0}",
+  "minLength": "{property} debe tener al menos {constraints.0} caracteres",
+  "maxLength": "{property} debe tener como máximo {constraints.0} caracteres",
+  "maxDecimalPlaces": "{property} debe tener como máximo {constraints.0.maxDecimalPlaces} decimales",
+  "isDefined": "{property} es obligatorio",
+  "isOptional": "{property} es opcional",
+  "validateNested": "{property} contiene datos anidados inválidos",
+  "whitelistValidation": "la propiedad {property} no está permitida"
 }

@@ -2,6 +2,19 @@
   "common": {
     "internalServerError": "Error interno del servidor",
     "notFound": "Recurso no encontrado",
-    "badRequest": "Solicitud inválida"
+    "badRequest": "Solicitud inválida",
+    "tooManyRequests": "Demasiadas solicitudes, por favor espere"
+  },
+  "idempotency": {
+    "inProgress": "Una solicitud con la clave de idempotencia {key} se está procesando; reintente en unos instantes",
+    "hashDivergent": "La clave de idempotencia {key} ya fue utilizada con un payload diferente"
+  },
+  "order": {
+    "notFound": "Pedido con id {id} no encontrado"
+  },
+  "enrichment": {
+    "failed": "Error al enriquecer el pedido tras {attempts} intentos",
+    "exchangeRateUnavailable": "Servicio de cotización de cambio no disponible",
+    "invalidCurrency": "La moneda {currency} no es soportada por el proveedor de cambio"
   }
 }

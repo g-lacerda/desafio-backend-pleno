@@ -2,6 +2,19 @@
   "common": {
     "internalServerError": "Internal server error",
     "notFound": "Resource not found",
-    "badRequest": "Bad request"
+    "badRequest": "Bad request",
+    "tooManyRequests": "Too many requests, please slow down"
+  },
+  "idempotency": {
+    "inProgress": "A request with idempotency key {key} is currently being processed; retry shortly",
+    "hashDivergent": "Idempotency key {key} has already been used with a different payload"
+  },
+  "order": {
+    "notFound": "Order with id {id} not found"
+  },
+  "enrichment": {
+    "failed": "Failed to enrich order after {attempts} attempts",
+    "exchangeRateUnavailable": "Exchange rate service is unavailable",
+    "invalidCurrency": "Currency {currency} is not supported by the exchange rate provider"
   }
 }
