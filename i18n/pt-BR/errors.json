@@ -1,0 +1,7 @@
+{
+  "common": {
+    "internalServerError": "Erro interno do servidor",
+    "notFound": "Recurso não encontrado",
+    "badRequest": "Requisição inválida"
+  }
+}

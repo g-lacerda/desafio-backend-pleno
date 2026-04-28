@@ -38,7 +38,7 @@ O serviço atua como ponto de entrada confiável para pedidos externos, resolven
 
 ## Roadmap
 
-- [ ] **Fase 1** — Fundação e infraestrutura (Docker, Prisma, i18n base, health check, Swagger).
+- [x] **Fase 1** — Fundação e infraestrutura (Docker, Prisma, i18n base, health check, Swagger).
 - [ ] **Fase 2** — Recebimento do pedido (webhook validado, idempotência via tabela dedicada, throttler).
 - [ ] **Fase 3** — Processamento assíncrono (worker, retry com backoff, DLQ, integração com AwesomeAPI).
 - [ ] **Fase 4** — Usuários, autenticação por API key, endpoints de consulta e administração.
@@ -53,12 +53,74 @@ O serviço atua como ponto de entrada confiável para pedidos externos, resolven
 
 ## Como executar
 
-> A documentação completa de execução será adicionada conforme as fases do roadmap forem concluídas.
+### Pré-requisitos
 
-Pré-requisitos previstos: Node.js 20+, Docker, Git.
+- Node.js 20+
+- Docker e Docker Compose
+- Git
+
+### Setup
+
+```bash
+# 1. Clone e entre no diretório
+git clone <url-do-repo>
+cd desafio-backend-pleno
+
+# 2. Instale as dependências
+npm install
+
+# 3. Copie o arquivo de ambiente
+cp .env.example .env
+
+# 4. Suba Postgres + Redis em containers
+docker compose up -d postgres redis
+
+# 5. Aplique as migrations do banco
+npm run prisma:migrate
+
+# 6. Suba a aplicação em modo dev
+npm run start:dev
+```
+
+A API estará disponível em `http://localhost:3000`.
+
+### Endpoints disponíveis (Fase 1)
+
+| Endpoint | Descrição |
+|---|---|
+| `GET /health` | Health check (Postgres + Redis) |
+| `GET /docs` | Documentação Swagger interativa |
+
+### Rodar a aplicação inteira em Docker (opcional)
+
+```bash
+docker compose --profile app up --build
+```
+
+### Testes
+
+```bash
+# Unitários
+npm test
+
+# Cobertura
+npm run test:cov
+
+# E2E (sobe Postgres e Redis efêmeros via Testcontainers — requer Docker rodando)
+npm run test:e2e
+```
+
+### Internacionalização
+
+A resposta da API é traduzida automaticamente usando o cabeçalho `Accept-Language`. Idiomas suportados: `en`, `pt-BR`, `es`. A partir da Fase 4, o idioma também pode ser determinado pela preferência do usuário autenticado.
+
+```bash
+curl -H "Accept-Language: pt-BR" http://localhost:3000/rota-inexistente
+# { "message": "Recurso não encontrado", ... }
+```
 
 ## Documentação
 
 - [DESAFIO.md](DESAFIO.md) — especificação original do desafio.
-- `/docs` — Swagger UI (após Fase 1).
+- `/docs` — Swagger UI.
 - `docs/openapi.json` e `docs/postman_collection.json` — coleções importáveis (após Fase 5).

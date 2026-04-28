@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  name              String
+  preferredLanguage Language @default(EN)
+  apiKeyHash        String   @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([apiKeyHash])
+  @@map("users")
+}
+
+enum Language {
+  PT_BR @map("pt-BR")
+  EN    @map("en")
+  ES    @map("es")
+}
+
+model Order {
+  id                   String      @id @default(uuid())
+  externalOrderId      String      @unique
+  customerEmail        String
+  customerName         String
+  items                Json
+  currency             String
+  totalOriginalCents   Int
+  totalConvertedCents  Int?
+  conversionRateMicros Int?
+  status               OrderStatus @default(RECEIVED)
+  failureReason        String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  RECEIVED
+  ENRICHING
+  ENRICHED
+  FAILED_ENRICHMENT
+}
+
+model IdempotencyKey {
+  key            String            @id
+  requestHash    String
+  status         IdempotencyStatus
+  responseStatus Int?
+  responseBody   Json?
+  orderId        String?
+  createdAt      DateTime          @default(now())
+  completedAt    DateTime?
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}

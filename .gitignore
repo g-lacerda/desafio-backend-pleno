@@ -41,3 +41,6 @@ prisma/*.db-journal
 # Temp / runtime
 tmp/
 temp/
+
+# Testcontainers manifest (gerado em runtime pelos E2E)
+test/.testcontainers.json
