@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4789-aaaa-orchestrator0001",
     "name": "Order Orchestrator — Inbazz",
-    "description": "Coleção completa do desafio backend pleno (Inbazz). Cobre todos os endpoints com cenários de sucesso, falha e i18n.\n\n**Como usar:**\n\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável de coleção `baseUrl` aponta para `http://localhost:3001` (porta do `.env` local).\n3. Suba a infra: `docker compose up -d postgres redis && npm run start:dev`.\n4. Rode `npm run seed:users` para criar 3 usuários demo (pt-BR, en, es) — copie as 3 API keys impressas no console e cole nas variáveis `apiKeyPtBR`, `apiKeyEN` e `apiKeyES`.\n5. Use os endpoints autenticados — escolha qual variável de chave usar conforme o idioma desejado.\n\n**Estrutura:**\n- Health, Documentação, i18n: públicos.\n- POST /webhooks/orders: público (sistemas externos).\n- POST /users: público (provisionamento).\n- GET /orders, GET /queue/metrics: protegidos por API key (Authorization: Bearer ou X-API-Key).",
+    "description": "Coleção completa do desafio backend pleno (Inbazz). Cobre todos os endpoints com cenários de sucesso, falha e i18n.\n\n**Como usar:**\n\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável de coleção `baseUrl` aponta para `http://localhost:3000` (porta padrão do backend).\n3. Suba a infra: `docker compose up -d postgres redis && npm run start:dev`.\n4. Rode `npm run seed:users` para criar 3 usuários demo (pt-BR, en, es) — copie as 3 API keys impressas no console e cole nas variáveis `apiKeyPtBR`, `apiKeyEN` e `apiKeyES`.\n5. Use os endpoints autenticados — escolha qual variável de chave usar conforme o idioma desejado.\n\n**Estrutura:**\n- Health, Documentação, i18n: públicos.\n- POST /webhooks/orders: público (sistemas externos).\n- POST /users: público (provisionamento).\n- GET /orders, GET /queue/metrics: protegidos por API key (Authorization: Bearer ou X-API-Key).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -350,7 +350,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["admin", "queues"]
             },
-            "description": "UI interativa do Bull Board. Requer `X-Admin-Key`. Para acessar via navegador (que não envia headers facilmente), use uma extensão como ModHeader ou abra com `curl -H 'X-Admin-Key: <chave>' -L http://localhost:3001/admin/queues`."
+            "description": "UI interativa do Bull Board. Requer `X-Admin-Key`. Para acessar via navegador (que não envia headers facilmente), use uma extensão como ModHeader ou abra com `curl -H 'X-Admin-Key: <chave>' -L http://localhost:3000/admin/queues`."
           }
         },
         {
@@ -455,9 +455,9 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3001",
+      "value": "http://localhost:3000",
       "type": "string",
-      "description": "URL base. Local: 3001 (via .env). Padrão do .env.example: 3000."
+      "description": "URL base do backend. Padrão da aplicação: 3000."
     },
     {
       "key": "apiKeyPtBR",

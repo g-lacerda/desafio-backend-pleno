@@ -96,58 +96,58 @@ Verifique tudo de uma vez:
 node -v && docker -v && docker compose version && git --version
 ```
 
-### Setup completo (cinco comandos)
+### Setup recomendado para avaliação (2 comandos, só Docker)
+
+> ✅ **Não precisa instalar Node, npm, Prisma CLI nem rodar migrations manualmente.** O `docker compose up` sobe Postgres + Redis + Backend + UI; o container do backend roda `prisma migrate deploy` automaticamente no startup.
 
 ```bash
 git clone <url-do-repo>
 cd desafio-backend-pleno
-
-cp .env.example .env                   # 1. configuração
-npm install                            # 2. dependências
-docker compose up -d postgres redis    # 3. infra
-npm run prisma:migrate                 # 4. schema
-npm run start:dev                      # 5. servidor (watch mode)
+cp .env.example .env             # 1. config
+docker compose up -d --build     # 2. sobe Postgres + Redis + Backend (com migrations) + UI
 ```
 
-A API estará disponível em `http://localhost:3000` (ou `3001` se usar o `.env` local que evita conflitos).
-
-### Subir a UI de teste (opcional, mas recomendado)
-
-Console single-page (HTML+JS vanilla) que cobre todos os endpoints visualmente — formulários prontos, status codes coloridos, tabelas pra GETs, embed de Swagger/Bull Board/`/metrics`, persistência de API key/Admin key em `localStorage`.
-
-Em outro terminal:
-
-```bash
-npx serve UI
-```
-
-Abra a URL impressa no terminal (geralmente `http://localhost:3000` — se conflitar com a API, use `npx serve UI -l 8080`). Detalhes adicionais em [UI/README.md](UI/README.md).
+Acesse:
+- **UI**: http://localhost:8080
+- **API**: http://localhost:3000
+- **Swagger**: http://localhost:3000/docs
+- **Bull Board**: http://localhost:3000/admin/queues?admin_key=change-me-to-a-strong-random-secret
 
 ### Provisionar usuários demo
 
 ```bash
-npm run seed:users
+docker compose exec app npm run seed:users
 ```
 
-Cria 3 usuários (`demo-pt@inbazz.com`, `demo-en@inbazz.com`, `demo-es@inbazz.com`) e imprime as 3 API keys no console. Cole-as no environment do Postman.
+Cria 3 usuários (`demo-pt@inbazz.com`, `demo-en@inbazz.com`, `demo-es@inbazz.com`) e imprime as 3 API keys no console (a senha demo de todos é `demo-pass-1234`). Cole as chaves nas variáveis `apiKeyPtBR`/`apiKeyEN`/`apiKeyES` do Postman ou no campo "API Key" da UI.
 
 ### Disparar webhooks de demonstração
 
 ```bash
-npm run seed:webhook                       # 1 pedido válido
-npm run seed:webhook -- --scenario=duplicate   # replay (mesma chave 2x)
-npm run seed:webhook -- --scenario=hash        # hash divergente (422)
-npm run seed:webhook -- --scenario=invalid     # payload inválido (400)
-npm run seed:webhook:load                  # 50 pedidos paralelos
-npm run seed:webhook:dlq                   # moeda XXX → vai pra DLQ
-npm run seed:webhook:all                   # roda todos os cenários
+docker compose exec app npm run seed:webhook                    # 1 pedido válido
+docker compose exec app npm run seed:webhook -- --scenario=duplicate   # replay (mesma chave 2x)
+docker compose exec app npm run seed:webhook -- --scenario=hash        # hash divergente (422)
+docker compose exec app npm run seed:webhook -- --scenario=invalid     # payload inválido (400)
+docker compose exec app npm run seed:webhook:load               # 50 pedidos paralelos
+docker compose exec app npm run seed:webhook:dlq                # moeda AFN → vai pra DLQ
+docker compose exec app npm run seed:webhook:all                # roda todos os cenários
 ```
 
-### Subir tudo em containers (opcional, sem dev mode)
+### Setup alternativo para desenvolvimento (com hot reload)
+
+Se quiser modificar o código com `nest start --watch`, precisa de Node 20+ local:
 
 ```bash
-docker compose --profile app up --build
+cp .env.example .env
+npm install
+docker compose up -d postgres redis    # só infra (NÃO sobe o app/ui em containers)
+npm run prisma:migrate                 # aplica migrations
+npm run start:dev                      # servidor com watch mode
+# UI em outro terminal:
+npx serve UI -l 8080
 ```
+
+Os scripts `seed:users`, `seed:webhook` etc. funcionam direto (sem `docker compose exec`).
 
 ---
 
@@ -266,11 +266,11 @@ A API responde em 3 idiomas: **pt-BR**, **en**, **es**. A resolução é em casc
 
 ```bash
 # Sem auth: usa Accept-Language
-curl -H "Accept-Language: pt-BR" http://localhost:3001/rota-inexistente
+curl -H "Accept-Language: pt-BR" http://localhost:3000/rota-inexistente
 # {"message":"Recurso não encontrado", ...}
 
 # Com auth: usa preferredLanguage do usuário
-curl -H "Authorization: Bearer sk_live_..." http://localhost:3001/orders/inexistente
+curl -H "Authorization: Bearer sk_live_..." http://localhost:3000/orders/inexistente
 # (em pt-BR/en/es conforme o usuário)
 ```
 

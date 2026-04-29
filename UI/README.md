@@ -9,12 +9,10 @@ A API tem CORS habilitado, então qualquer servidor estático local funciona. Us
 ### Opção 1 — npx serve (recomendada — Node já está instalado)
 
 ```bash
-npx serve UI
-# se conflitar com a porta 3000, mude:
 npx serve UI -l 8080
 ```
 
-Abra a URL impressa no terminal.
+Abra `http://localhost:8080`. Backend roda na 3000, UI na 8080 — sem conflito.
 
 ### Opção 2 — VS Code Live Server
 
@@ -47,7 +45,7 @@ Cada formulário tem seu próprio painel de resposta logo abaixo, com:
 
 ## Fluxo recomendado pra demo
 
-1. Suba o backend: `npm run start:dev` (porta 3001 por padrão no `.env` local).
+1. Suba o backend: `npm run start:dev` (escuta em `http://localhost:3000`).
 2. Abra a UI.
 3. **Criar usuário** (preferredLanguage = PT_BR) → API key fica salva.
 4. **Webhook → cenário "válido"** → 202 + Order persistido.

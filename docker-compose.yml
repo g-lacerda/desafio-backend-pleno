@@ -37,12 +37,16 @@ services:
       dockerfile: Dockerfile
     container_name: orchestrator-app
     restart: unless-stopped
-    profiles: ['app']
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # `env_file` carrega TUDO do .env (DEFAULT_LANGUAGE, AWESOMEAPI_*, ADMIN_API_KEY etc.).
+    # `environment` SOBRESCREVE só o que precisa ser diferente dentro do container
+    # (hostnames `postgres`/`redis` em vez de `localhost`, portas internas em vez das mapeadas).
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -51,6 +55,15 @@ services:
       REDIS_PORT: 6379
     ports:
       - '${PORT:-3000}:3000'
+
+  ui:
+    image: nginx:alpine
+    container_name: orchestrator-ui
+    restart: unless-stopped
+    volumes:
+      - ./UI:/usr/share/nginx/html:ro
+    ports:
+      - '${UI_PORT:-8080}:80'
 
 volumes:
   postgres_data:

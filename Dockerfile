@@ -23,7 +23,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# `--ignore-scripts` pula o `prepare: husky` (husky é devDep, não está instalada em prod).
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
@@ -33,4 +34,6 @@ COPY --from=builder /app/i18n ./i18n
 
 EXPOSE 3000
 
-CMD ["node", "dist/main.js"]
+# Roda migrations Prisma antes de subir o servidor.
+# Usar `migrate deploy` (não `dev`) — só aplica migrations existentes, não gera novas.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
