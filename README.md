@@ -51,50 +51,42 @@ O serviço é um ponto de entrada confiável para pedidos externos. Resolve quat
 
 ### Pré-requisitos
 
+Mínimo necessário (basta para a **Opção A — Docker**):
+
 | Ferramenta | Versão | Como instalar |
 |---|---|---|
-| **Node.js** | 20+ | Linux/macOS: [nvm](https://github.com/nvm-sh/nvm) (`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh \| bash` e depois `nvm install 20`), Windows: [nodejs.org](https://nodejs.org/) (LTS) ou [nvm-windows](https://github.com/coreybutler/nvm-windows) |
 | **Docker** + **Docker Compose** | recente | Linux: [docs.docker.com/engine/install](https://docs.docker.com/engine/install/) (Engine + plugin Compose), macOS/Windows: [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
 | **Git** | qualquer | Linux: `sudo apt install git` / `sudo dnf install git`, macOS: `brew install git` (ou Xcode CLT), Windows: [git-scm.com](https://git-scm.com/download/win) |
 
+> Para **Opção B — Local** (desenvolvimento com hot reload) é necessário também **Node.js 20+** (instale via [nvm](https://github.com/nvm-sh/nvm), [nodejs.org](https://nodejs.org/) ou [nvm-windows](https://github.com/coreybutler/nvm-windows)).
+
 <details>
-<summary>📋 Comandos copy-paste por sistema</summary>
+<summary>Comandos copy-paste por sistema</summary>
 
 **Ubuntu / Debian:**
 ```bash
-# Git + Docker (Engine)
 sudo apt update && sudo apt install -y git ca-certificates curl
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER && newgrp docker
-
-# Node 20 via nvm
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
-\. "$HOME/.nvm/nvm.sh" && nvm install 20
 ```
 
 **macOS (com [Homebrew](https://brew.sh)):**
 ```bash
 brew install git
 brew install --cask docker        # Docker Desktop
-brew install nvm && nvm install 20
 ```
 
-**Windows (com [Chocolatey](https://chocolatey.org/install) ou [Scoop](https://scoop.sh)):**
+**Windows (com [Chocolatey](https://chocolatey.org/install)):**
 ```powershell
-# Chocolatey
-choco install -y git nodejs-lts docker-desktop
+choco install -y git docker-desktop
+```
 
-# Ou Scoop
-scoop install git nodejs-lts
-# Docker Desktop: baixar do site oficial
+Verifique tudo:
+```bash
+docker -v && docker compose version && git --version
 ```
 
 </details>
-
-Verifique tudo de uma vez:
-```bash
-node -v && docker -v && docker compose version && git --version
-```
 
 Escolha **uma** das duas opções abaixo. Use a **Opção A (Docker)** se quer apenas avaliar/testar, ela é mais simples e não exige Node instalado. Use a **Opção B (Local)** apenas se for modificar o código com hot reload.
 
