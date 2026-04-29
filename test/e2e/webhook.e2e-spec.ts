@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { INestApplication } from '@nestjs/common';
 import { IdempotencyStatus, OrderStatus, PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import { bootstrapTestApp } from '../helpers/test-app';
+import { bootstrapTestApp, postWebhook, WEBHOOK_SECRET } from '../helpers/test-app';
 
 interface OrderPayloadOverrides {
   order_id?: string;
@@ -37,10 +37,36 @@ describe('Webhook /webhooks/orders (E2E)', () => {
     await app?.close();
   });
 
+  describe('autenticação (X-Webhook-Secret)', () => {
+    it('sem header → 401', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/webhooks/orders')
+        .send(buildPayload());
+      expect(res.status).toBe(401);
+      expect(res.body.message).toMatch(/webhook/i);
+    });
+
+    it('header com secret errado → 401', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/webhooks/orders')
+        .set('X-Webhook-Secret', 'wrong-secret')
+        .send(buildPayload());
+      expect(res.status).toBe(401);
+    });
+
+    it('Authorization Bearer com secret correto → 202', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/webhooks/orders')
+        .set('Authorization', `Bearer ${WEBHOOK_SECRET}`)
+        .send(buildPayload());
+      expect(res.status).toBe(202);
+    });
+  });
+
   describe('payload válido', () => {
     it('aceita pedido, retorna 202 e persiste Order com status RECEIVED', async () => {
       const payload = buildPayload({ order_id: `ext-${randomUUID().slice(0, 8)}` });
-      const res = await request(app.getHttpServer()).post('/webhooks/orders').send(payload);
+      const res = await postWebhook(app).send(payload);
 
       expect(res.status).toBe(202);
       expect(res.body.id).toEqual(expect.any(String));
@@ -68,10 +94,10 @@ describe('Webhook /webhooks/orders (E2E)', () => {
   describe('idempotência', () => {
     it('replay: mesma chave + mesmo payload → devolve resposta original sem criar Order duplicado', async () => {
       const payload = buildPayload();
-      const first = await request(app.getHttpServer()).post('/webhooks/orders').send(payload);
+      const first = await postWebhook(app).send(payload);
       expect(first.status).toBe(202);
 
-      const second = await request(app.getHttpServer()).post('/webhooks/orders').send(payload);
+      const second = await postWebhook(app).send(payload);
       expect(second.status).toBe(202);
       expect(second.body).toEqual(first.body);
 
@@ -83,13 +109,11 @@ describe('Webhook /webhooks/orders (E2E)', () => {
 
     it('hash divergente: mesma chave + payload diferente → 422', async () => {
       const key = randomUUID();
-      const first = await request(app.getHttpServer())
-        .post('/webhooks/orders')
+      const first = await postWebhook(app)
         .send(buildPayload({ idempotency_key: key }));
       expect(first.status).toBe(202);
 
-      const second = await request(app.getHttpServer())
-        .post('/webhooks/orders')
+      const second = await postWebhook(app)
         .send(buildPayload({ idempotency_key: key, customer: { email: 'other@example.com' } }));
 
       expect(second.status).toBe(422);
@@ -102,35 +126,31 @@ describe('Webhook /webhooks/orders (E2E)', () => {
       const payload = buildPayload();
       delete (payload.customer as Partial<typeof payload.customer>).email;
 
-      const res = await request(app.getHttpServer()).post('/webhooks/orders').send(payload);
+      const res = await postWebhook(app).send(payload);
       expect(res.status).toBe(400);
       expect(Array.isArray(res.body.message)).toBe(true);
     });
 
     it('items vazio → 400', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/orders')
+      const res = await postWebhook(app)
         .send(buildPayload({ items: [] }));
       expect(res.status).toBe(400);
     });
 
     it('unit_price com 3 decimais → 400', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/orders')
+      const res = await postWebhook(app)
         .send(buildPayload({ items: [{ sku: 'X', qty: 1, unit_price: 9.999 }] }));
       expect(res.status).toBe(400);
     });
 
     it('unit_price negativo → 400', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/orders')
+      const res = await postWebhook(app)
         .send(buildPayload({ items: [{ sku: 'X', qty: 1, unit_price: -1 }] }));
       expect(res.status).toBe(400);
     });
 
     it('unit_price acima do limite → 400', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/orders')
+      const res = await postWebhook(app)
         .send(buildPayload({ items: [{ sku: 'X', qty: 1, unit_price: 1_000_001 }] }));
       expect(res.status).toBe(400);
     });
@@ -143,8 +163,7 @@ describe('Webhook /webhooks/orders (E2E)', () => {
       ['es', /correo electr[óo]nico v[áa]lido/i],
     ])('payload inválido com Accept-Language=%s → mensagem traduzida', async (lang, regex) => {
       const payload = buildPayload({ customer: { email: 'not-an-email' } });
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/orders')
+      const res = await postWebhook(app)
         .set('Accept-Language', lang)
         .send(payload);
 
@@ -163,12 +182,9 @@ describe('Webhook /webhooks/orders (E2E)', () => {
       'hash divergente com Accept-Language=%s → mensagem traduzida',
       async (lang, regex) => {
         const key = randomUUID();
-        await request(app.getHttpServer())
-          .post('/webhooks/orders')
-          .send(buildPayload({ idempotency_key: key }));
+        await postWebhook(app).send(buildPayload({ idempotency_key: key }));
 
-        const second = await request(app.getHttpServer())
-          .post('/webhooks/orders')
+        const second = await postWebhook(app)
           .set('Accept-Language', lang)
           .send(buildPayload({ idempotency_key: key, customer: { email: 'b@b.com' } }));
 

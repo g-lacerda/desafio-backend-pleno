@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { bootstrapTestApp } from '../helpers/test-app';
+import { bootstrapTestApp, postWebhook } from '../helpers/test-app';
 
 const buildPayload = () => ({
   order_id: `ext-${randomUUID().slice(0, 8)}`,
@@ -30,20 +29,17 @@ describe('Webhook throttler (E2E)', () => {
 
   it(`bloqueia a ${LIMIT + 1}ª requisição com 429 dentro da janela`, async () => {
     for (let i = 0; i < LIMIT; i++) {
-      const res = await request(app.getHttpServer()).post('/webhooks/orders').send(buildPayload());
+      const res = await postWebhook(app).send(buildPayload());
       expect([202, 422]).toContain(res.status);
     }
 
-    const overflow = await request(app.getHttpServer())
-      .post('/webhooks/orders')
-      .send(buildPayload());
+    const overflow = await postWebhook(app).send(buildPayload());
 
     expect(overflow.status).toBe(429);
   });
 
   it('mensagem 429 vem traduzida via Accept-Language', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/webhooks/orders')
+    const res = await postWebhook(app)
       .set('Accept-Language', 'pt-BR')
       .send(buildPayload());
 

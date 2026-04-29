@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { INestApplication } from '@nestjs/common';
 import { Language, OrderStatus, PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import { ADMIN_KEY, bootstrapTestApp } from '../helpers/test-app';
+import { ADMIN_KEY, bootstrapTestApp, postWebhook } from '../helpers/test-app';
 
 const buildOrderPayload = () => ({
   order_id: `ext-${randomUUID().slice(0, 8)}`,
@@ -57,9 +57,7 @@ describe('Orders consultation (E2E)', () => {
     let createdId: string;
 
     beforeAll(async () => {
-      const res = await request(app.getHttpServer())
-        .post('/webhooks/orders')
-        .send(buildOrderPayload());
+      const res = await postWebhook(app).send(buildOrderPayload());
       createdId = res.body.id;
     });
 

@@ -19,6 +19,10 @@
   "auth": {
     "missingApiKey": "La clave de API es obligatoria (envíe vía Authorization: Bearer <clave> o cabecera X-API-Key)",
     "invalidApiKey": "Clave de API inválida",
+    "missingAdminKey": "La clave administrativa es obligatoria (envíe vía cabecera X-Admin-Key o Authorization: Bearer <ADMIN_API_KEY>)",
+    "invalidAdminKey": "Clave administrativa inválida",
+    "missingWebhookSecret": "El secreto del webhook es obligatorio (envíe vía cabecera X-Webhook-Secret o Authorization: Bearer <WEBHOOK_SECRET>)",
+    "invalidWebhookSecret": "Secreto del webhook inválido",
     "invalidCredentials": "Correo electrónico o contraseña inválidos"
   },
   "enrichment": {

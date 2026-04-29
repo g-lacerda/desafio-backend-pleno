@@ -28,7 +28,7 @@ O serviço é um ponto de entrada confiável para pedidos externos. Resolve quat
 | Documentação | Swagger (`@nestjs/swagger`) em `/docs` |
 | Logs | Pino estruturado (`nestjs-pino`) |
 | i18n | `nestjs-i18n` (pt-BR, en, es) |
-| Auth | API key per user (`Authorization: Bearer …` ou `X-API-Key`, hash SHA-256) |
+| Auth | 3 níveis: user API key per usuário (`Bearer`/`X-API-Key`, hash SHA-256), admin key (`X-Admin-Key`), webhook secret (`X-Webhook-Secret`) |
 | Health check | `@nestjs/terminus` em `/health` |
 | Rate limiting | `@nestjs/throttler` |
 | Métricas | Prometheus (`@willsoto/nestjs-prometheus`) em `/metrics` |
@@ -192,7 +192,7 @@ npm run seed:webhook        # ou outras variações
 |---|---|---|---|
 | `POST` | `/users` | **Admin Key** (`X-Admin-Key`) | Cria usuário (com `password` bcrypt) e devolve `api_key` uma única vez. |
 | `POST` | `/auth/login` | público | Autentica `email` + `password` e **rotaciona** a API key (use se perdeu a chave). |
-| `POST` | `/webhooks/orders` | público (rate-limited) | Recebe pedido, valida, garante idempotência e enfileira para enrichment. |
+| `POST` | `/webhooks/orders` | **Webhook Secret** (`X-Webhook-Secret`) + rate-limited | Recebe pedido, valida, garante idempotência e enfileira para enrichment. |
 | `GET` | `/orders` | User API key (`Authorization: Bearer` ou `X-API-Key`) | Lista pedidos com filtro `status` e paginação. |
 | `GET` | `/orders/:id` | User API key | Detalhes de um pedido. |
 | `GET` | `/queue/metrics` | User API key | Contadores agregados das filas (`enrichment-queue`, `enrichment-dlq`). |
@@ -202,10 +202,13 @@ npm run seed:webhook        # ou outras variações
 | `GET` | `/docs` | público | Swagger UI. |
 | `GET` | `/docs-json` | público | Spec OpenAPI 3.0 cru. |
 
-### Dois níveis de autenticação
+### Três níveis de autenticação
 
 - **User API key** (`sk_live_...`), gerada por `POST /users`, identifica um usuário individual. Usada nos endpoints de consulta (`/orders`, `/queue/metrics`).
-- **Admin key**, segredo único compartilhado, vem da env `ADMIN_API_KEY` (mín 16 chars). Usada pra operações administrativas: provisionar usuários (`POST /users`) e acessar Bull Board (`/admin/queues`). Em produção real, ficaria atrás de um secret manager (AWS Secrets, Vault, etc.).
+- **Admin key**, segredo único compartilhado, vem da env `ADMIN_API_KEY` (mín 16 chars). Usada pra operações administrativas: provisionar usuários (`POST /users`) e acessar Bull Board (`/admin/queues`).
+- **Webhook secret**, segredo compartilhado com sistemas externos que invocam `POST /webhooks/orders`, vem da env `WEBHOOK_SECRET` (mín 16 chars). Enviado em `X-Webhook-Secret` ou `Authorization: Bearer`.
+
+Em produção real, todos os 3 ficariam atrás de um secret manager (AWS Secrets, Vault, etc.). Os dois últimos são per-service (compartilhados), enquanto a user API key é per-user.
 
 ---
 
@@ -343,9 +346,12 @@ npm run test:e2e        # E2E com Testcontainers (requer Docker rodando)
 ### Importar no Postman
 
 1. Postman → **Import** → arrasta `docs/postman_collection.json`.
-2. Rode `npm run seed:users` no terminal.
-3. Cole as 3 API keys impressas nas variáveis `apiKeyPtBR`, `apiKeyEN`, `apiKeyES` da coleção.
-4. Use os endpoints. As mensagens de erro virão no idioma do usuário escolhido.
+2. Na coleção importada, abra **Variables** e preencha:
+   - `adminKey` ← valor da env `ADMIN_API_KEY` (necessária para `POST /users` e Bull Board).
+   - `webhookSecret` ← valor da env `WEBHOOK_SECRET` (necessária para `POST /webhooks/orders`).
+3. Rode `npm run seed:users` (ou `docker compose exec app npm run seed:users` se estiver no Docker).
+4. Cole as 3 API keys impressas nas variáveis `apiKeyPtBR`, `apiKeyEN`, `apiKeyES` da coleção.
+5. Use os endpoints. As mensagens de erro virão no idioma do usuário escolhido.
 
 ### Importar OpenAPI em outras ferramentas
 
@@ -368,6 +374,7 @@ Todas validadas via Joi schema em `src/shared/config/env.validation.ts`. Ver `.e
 | AwesomeAPI | `AWESOMEAPI_BASE_URL`, `AWESOMEAPI_TIMEOUT_MS`, `AWESOMEAPI_TOKEN` (opcional) |
 | Worker | `ENRICHMENT_MAX_ATTEMPTS`, `ENRICHMENT_BACKOFF_BASE_MS` |
 | Auth admin | `ADMIN_API_KEY` (mín 16 chars, obrigatória) |
+| Webhook | `WEBHOOK_SECRET` (mín 16 chars, obrigatória) — segredo compartilhado para `POST /webhooks/orders` |
 
 ---
 

@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
-import { InvalidApiKeyException } from './exceptions/invalid-api-key.exception';
-import { MissingApiKeyException } from './exceptions/missing-api-key.exception';
+import { InvalidAdminKeyException } from './exceptions/invalid-admin-key.exception';
+import { MissingAdminKeyException } from './exceptions/missing-admin-key.exception';
 
 const BEARER_PREFIX = /^Bearer\s+/i;
 
@@ -23,8 +23,8 @@ export class AdminKeyGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<Request>();
     const provided = this.extractKey(req);
-    if (!provided) throw new MissingApiKeyException();
-    if (provided !== this.adminKey) throw new InvalidApiKeyException();
+    if (!provided) throw new MissingAdminKeyException();
+    if (provided !== this.adminKey) throw new InvalidAdminKeyException();
     return true;
   }
 

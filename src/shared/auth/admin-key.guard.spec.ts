@@ -1,8 +1,8 @@
 import { ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AdminKeyGuard } from './admin-key.guard';
-import { InvalidApiKeyException } from './exceptions/invalid-api-key.exception';
-import { MissingApiKeyException } from './exceptions/missing-api-key.exception';
+import { InvalidAdminKeyException } from './exceptions/invalid-admin-key.exception';
+import { MissingAdminKeyException } from './exceptions/missing-admin-key.exception';
 
 describe('AdminKeyGuard', () => {
   let guard: AdminKeyGuard;
@@ -20,14 +20,14 @@ describe('AdminKeyGuard', () => {
     guard = new AdminKeyGuard(config);
   });
 
-  it('lança MissingApiKeyException sem header', () => {
-    expect(() => guard.canActivate(buildContext({}))).toThrow(MissingApiKeyException);
+  it('lança MissingAdminKeyException sem header', () => {
+    expect(() => guard.canActivate(buildContext({}))).toThrow(MissingAdminKeyException);
   });
 
-  it('lança InvalidApiKeyException com chave errada', () => {
+  it('lança InvalidAdminKeyException com chave errada', () => {
     expect(() =>
       guard.canActivate(buildContext({ 'x-admin-key': 'wrong' })),
-    ).toThrow(InvalidApiKeyException);
+    ).toThrow(InvalidAdminKeyException);
   });
 
   it('aceita header X-Admin-Key correto', () => {
@@ -43,7 +43,7 @@ describe('AdminKeyGuard', () => {
   it('Authorization Bearer com chave errada → 401', () => {
     expect(() =>
       guard.canActivate(buildContext({ authorization: 'Bearer wrong-key' })),
-    ).toThrow(InvalidApiKeyException);
+    ).toThrow(InvalidAdminKeyException);
   });
 
   it('X-Admin-Key tem precedência sobre Authorization', () => {

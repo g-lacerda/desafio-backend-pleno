@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4789-aaaa-orchestrator0001",
     "name": "Order Orchestrator — Inbazz",
-    "description": "Coleção completa do desafio backend pleno (Inbazz). Cobre todos os endpoints com cenários de sucesso, falha e i18n.\n\n**Como usar:**\n\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável de coleção `baseUrl` aponta para `http://localhost:3000` (porta padrão do backend).\n3. Suba a infra: `docker compose up -d postgres redis && npm run start:dev`.\n4. Rode `npm run seed:users` para criar 3 usuários demo (pt-BR, en, es) — copie as 3 API keys impressas no console e cole nas variáveis `apiKeyPtBR`, `apiKeyEN` e `apiKeyES`.\n5. Use os endpoints autenticados — escolha qual variável de chave usar conforme o idioma desejado.\n\n**Estrutura:**\n- Health, Documentação, i18n: públicos.\n- POST /webhooks/orders: público (sistemas externos).\n- POST /users: público (provisionamento).\n- GET /orders, GET /queue/metrics: protegidos por API key (Authorization: Bearer ou X-API-Key).",
+    "description": "Coleção completa do desafio backend pleno (Inbazz). Cobre todos os endpoints com cenários de sucesso, falha e i18n.\n\n**Como usar:**\n\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável de coleção `baseUrl` aponta para `http://localhost:3000` (porta padrão do backend).\n3. Suba a infra: `docker compose up -d` (ou `docker compose up -d postgres redis && npm run start:dev` para rodar o backend localmente).\n4. **Preencha as variáveis de coleção** com os valores das envs correspondentes (no `.env` ou docker-compose):\n   - `adminKey` ← `ADMIN_API_KEY` (necessária para `POST /users` e Bull Board)\n   - `webhookSecret` ← `WEBHOOK_SECRET` (necessária para `POST /webhooks/orders`)\n5. Rode `npm run seed:users` (ou `docker compose exec app npm run seed:users`) para criar 3 usuários demo (pt-BR, en, es) — copie as 3 API keys impressas no console e cole nas variáveis `apiKeyPtBR`, `apiKeyEN` e `apiKeyES`.\n6. Use os endpoints autenticados — escolha qual variável de chave usar conforme o idioma desejado.\n\n**Estrutura:**\n- Health, Documentação, i18n: públicos.\n- POST /webhooks/orders: protegido por **webhook secret** (`X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`).\n- POST /users, /admin/queues: protegidos por **admin key** (`X-Admin-Key` ou `Authorization: Bearer <ADMIN_API_KEY>`).\n- GET /orders, GET /queue/metrics, POST /auth/login, POST /auth/rotate-api-key: protegidos por **API key de usuário** (`Authorization: Bearer` ou `X-API-Key`).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -125,7 +125,7 @@
       ]
     },
     {
-      "name": "Webhooks (público)",
+      "name": "Webhooks (autenticado por segredo)",
       "item": [
         {
           "name": "POST /webhooks/orders — válido",
@@ -143,7 +143,10 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"user@example.com\", \"name\": \"Ana Silva\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
@@ -153,7 +156,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Recebe pedido válido. Esperado: `202 Accepted`. O enriquecimento (USD→BRL via AwesomeAPI) acontece em background."
+            "description": "Recebe pedido válido. Esperado: `202 Accepted`. O enriquecimento (USD→BRL via AwesomeAPI) acontece em background. **Requer `X-Webhook-Secret` (variável `webhookSecret`).**"
           }
         },
         {
@@ -169,7 +172,10 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": { \"email\": \"user@example.com\", \"name\": \"Ana Silva\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
@@ -186,7 +192,10 @@
           "name": "POST /webhooks/orders — hash divergente (422)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": { \"email\": \"OUTRO@example.com\", \"name\": \"Outro\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"demo-replay-fixed-key\"\n}"
@@ -215,7 +224,10 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"u@e.com\", \"name\": \"Demo\" },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 10 }],\n  \"currency\": \"AFN\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
@@ -234,7 +246,8 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept-Language", "value": "pt-BR" }
+              { "key": "Accept-Language", "value": "pt-BR" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
             ],
             "body": {
               "mode": "raw",
@@ -246,6 +259,23 @@
               "path": ["webhooks", "orders"]
             },
             "description": "Esperado: 400 com lista de erros traduzida em português."
+          }
+        },
+        {
+          "name": "POST /webhooks/orders — sem secret (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"ext-no-secret\",\n  \"customer\": { \"email\": \"u@e.com\", \"name\": \"Demo\" },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 10 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"any-key\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Esperado: 401 — POST /webhooks/orders requer `X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`."
           }
         }
       ]
@@ -479,9 +509,15 @@
     },
     {
       "key": "adminKey",
-      "value": "local-dev-admin-secret-key-do-not-use-in-prod",
+      "value": "",
       "type": "string",
-      "description": "Admin key (do .env / variável ADMIN_API_KEY). Necessária para POST /users e Bull Board."
+      "description": "Admin key — copie da env `ADMIN_API_KEY` (no `.env` / docker-compose) e cole aqui. Necessária para POST /users e Bull Board (`/admin/queues`)."
+    },
+    {
+      "key": "webhookSecret",
+      "value": "",
+      "type": "string",
+      "description": "Webhook secret — copie da env `WEBHOOK_SECRET` (no `.env` / docker-compose) e cole aqui. Necessária para POST /webhooks/orders."
     }
   ]
 }

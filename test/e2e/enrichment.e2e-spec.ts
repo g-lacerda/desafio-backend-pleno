@@ -2,8 +2,7 @@ import { randomUUID } from 'crypto';
 import { INestApplication } from '@nestjs/common';
 import { OrderStatus, PrismaClient } from '@prisma/client';
 import nock from 'nock';
-import request from 'supertest';
-import { AWESOMEAPI_HOST, bootstrapTestApp } from '../helpers/test-app';
+import { AWESOMEAPI_HOST, bootstrapTestApp, postWebhook } from '../helpers/test-app';
 import { poll } from '../helpers/poll';
 
 const buildPayload = (currency = 'USD') => ({
@@ -18,7 +17,7 @@ const submitOrder = async (
   app: INestApplication,
   payload = buildPayload(),
 ): Promise<{ id: string }> => {
-  const res = await request(app.getHttpServer()).post('/webhooks/orders').send(payload);
+  const res = await postWebhook(app).send(payload);
   expect(res.status).toBe(202);
   return { id: res.body.id };
 };

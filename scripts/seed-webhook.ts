@@ -18,6 +18,12 @@ import axios, { AxiosError } from 'axios';
 loadEnv();
 
 const baseUrl = process.env.SEED_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+const webhookSecret = process.env.WEBHOOK_SECRET;
+
+if (!webhookSecret) {
+  console.error('✗  WEBHOOK_SECRET não está definida no ambiente. Verifique o .env.');
+  process.exit(1);
+}
 
 const args = parseArgs();
 
@@ -39,7 +45,9 @@ const buildPayload = (overrides: Partial<OrderPayload> = {}): OrderPayload => ({
 
 async function send(payload: OrderPayload, label: string): Promise<void> {
   try {
-    const res = await axios.post(`${baseUrl}/webhooks/orders`, payload);
+    const res = await axios.post(`${baseUrl}/webhooks/orders`, payload, {
+      headers: { 'X-Webhook-Secret': webhookSecret },
+    });
     console.log(`✓ [${label}] ${res.status} — order_id=${res.data.id}`);
   } catch (error) {
     const err = error as AxiosError<{ message?: string | string[] }>;

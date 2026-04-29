@@ -37,4 +37,9 @@ export const envValidationSchema = Joi.object({
   // Admin key — protege POST /users e a UI Bull Board em /admin/queues.
   // Mínimo de 16 caracteres pra forçar valor não-trivial.
   ADMIN_API_KEY: Joi.string().min(16).required(),
+
+  // Webhook secret — segredo compartilhado com sistemas externos que invocam
+  // POST /webhooks/orders. Enviado em `X-Webhook-Secret` ou `Authorization: Bearer`.
+  // Mínimo de 16 caracteres.
+  WEBHOOK_SECRET: Joi.string().min(16).required(),
 });

@@ -31,6 +31,11 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/i18n ./i18n
+# Scripts admin (seed:users, seed:webhook, docs:export) são .ts executados via
+# ts-node em runtime — copiamos os fontes + tsconfig pra que `npm run seed:*`
+# funcione dentro do container.
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 EXPOSE 3000
 

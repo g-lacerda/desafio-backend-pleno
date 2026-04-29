@@ -3,10 +3,12 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import Redis from 'ioredis';
 import nock from 'nock';
+import request from 'supertest';
 import { loadTestcontainersEnv } from './load-testcontainers';
 
 const AWESOMEAPI_TEST_HOST = 'http://localhost:39101';
 const TEST_ADMIN_KEY = 'test-admin-key-for-e2e-only-1234567890';
+const TEST_WEBHOOK_SECRET = 'test-webhook-secret-for-e2e-only-1234567890';
 
 interface BootstrapOptions {
   envOverrides?: Record<string, string>;
@@ -34,6 +36,7 @@ export async function bootstrapTestApp(options: BootstrapOptions = {}): Promise<
   process.env.ENRICHMENT_BACKOFF_BASE_MS = process.env.ENRICHMENT_BACKOFF_BASE_MS ?? '50';
   process.env.WEBHOOK_THROTTLE_LIMIT = process.env.WEBHOOK_THROTTLE_LIMIT ?? '1000';
   process.env.ADMIN_API_KEY = TEST_ADMIN_KEY;
+  process.env.WEBHOOK_SECRET = TEST_WEBHOOK_SECRET;
   // Cada bootstrap gera um prefix único — isola filas entre test files E2E rodando
   // contra o mesmo Redis. Workers vazados de outros test files não veem os jobs.
   process.env.BULL_PREFIX = `bull-test-${randomUUID().slice(0, 8)}`;
@@ -64,6 +67,16 @@ export async function bootstrapTestApp(options: BootstrapOptions = {}): Promise<
 
 export const AWESOMEAPI_HOST = AWESOMEAPI_TEST_HOST;
 export const ADMIN_KEY = TEST_ADMIN_KEY;
+export const WEBHOOK_SECRET = TEST_WEBHOOK_SECRET;
+
+/**
+ * Helper supertest pra POST /webhooks/orders já com o header `X-Webhook-Secret`
+ * setado. Mantém os testes DRY ao mesmo tempo que reflete a auth real.
+ */
+export const postWebhook = (app: INestApplication) =>
+  request(app.getHttpServer())
+    .post('/webhooks/orders')
+    .set('X-Webhook-Secret', TEST_WEBHOOK_SECRET);
 
 async function flushRedis(): Promise<void> {
   const redis = new Redis({

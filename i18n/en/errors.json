@@ -19,6 +19,10 @@
   "auth": {
     "missingApiKey": "API key is required (send via Authorization: Bearer <key> or X-API-Key header)",
     "invalidApiKey": "Invalid API key",
+    "missingAdminKey": "Admin key is required (send via X-Admin-Key header or Authorization: Bearer <ADMIN_API_KEY>)",
+    "invalidAdminKey": "Invalid admin key",
+    "missingWebhookSecret": "Webhook secret is required (send via X-Webhook-Secret header or Authorization: Bearer <WEBHOOK_SECRET>)",
+    "invalidWebhookSecret": "Invalid webhook secret",
     "invalidCredentials": "Invalid email or password"
   },
   "enrichment": {

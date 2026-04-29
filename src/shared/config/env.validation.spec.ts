@@ -9,6 +9,7 @@ describe('envValidationSchema', () => {
     REDIS_PORT: 6379,
     DEFAULT_LANGUAGE: 'en',
     ADMIN_API_KEY: 'sufficient-length-admin-key',
+    WEBHOOK_SECRET: 'sufficient-length-webhook-secret',
   };
 
   it('aceita configuração válida', () => {
@@ -21,6 +22,7 @@ describe('envValidationSchema', () => {
       DATABASE_URL: validEnv.DATABASE_URL,
       REDIS_HOST: validEnv.REDIS_HOST,
       ADMIN_API_KEY: validEnv.ADMIN_API_KEY,
+      WEBHOOK_SECRET: validEnv.WEBHOOK_SECRET,
     });
     expect(error).toBeUndefined();
     expect(value.PORT).toBe(3000);
@@ -43,6 +45,22 @@ describe('envValidationSchema', () => {
       ADMIN_API_KEY: 'short',
     });
     expect(error?.message).toContain('ADMIN_API_KEY');
+  });
+
+  it('rejeita WEBHOOK_SECRET ausente', () => {
+    const { error } = envValidationSchema.validate({
+      ...validEnv,
+      WEBHOOK_SECRET: undefined,
+    });
+    expect(error?.message).toContain('WEBHOOK_SECRET');
+  });
+
+  it('rejeita WEBHOOK_SECRET com menos de 16 caracteres', () => {
+    const { error } = envValidationSchema.validate({
+      ...validEnv,
+      WEBHOOK_SECRET: 'short',
+    });
+    expect(error?.message).toContain('WEBHOOK_SECRET');
   });
 
   it('rejeita ausência de DATABASE_URL', () => {

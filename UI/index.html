@@ -33,25 +33,78 @@
     .header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
     .header p { color: var(--text-muted); margin: 4px 0 0; font-size: 0.9rem; }
     .config {
-      display: grid;
-      grid-template-columns: 1.5fr 2.5fr 2fr 1fr 1fr;
-      gap: 12px;
-      padding: 16px;
-      background: var(--surface);
-      border-radius: 8px;
-      margin-bottom: 24px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      border: 1px solid var(--border);
-    }
-    .config label {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 14px;
+      padding: 16px 18px;
+      background: var(--surface);
+      border-radius: 10px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+    .config-row {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+    }
+    .config-secrets {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .config-section-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: -4px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
       font-size: 0.8rem;
       color: var(--text-muted);
       font-weight: 500;
+      min-width: 0;
+    }
+    .field-grow { flex: 1; }
+    .field-compact { flex: 0 0 150px; }
+    .field-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      min-height: 18px;
+    }
+    .field-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .field-pill {
+      background: var(--surface-2);
+      color: var(--text-muted);
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      border: 1px solid var(--border);
+    }
+    .config-clear {
+      width: auto;
+      margin: 0;
+      padding: 8px 14px;
+      white-space: nowrap;
+      align-self: end;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     input, select, textarea {
       background: var(--surface-2);
@@ -80,7 +133,9 @@
     }
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
-      .config { grid-template-columns: 1fr; }
+      .config-row { flex-direction: column; align-items: stretch; }
+      .config-secrets { grid-template-columns: 1fr; }
+      .config-clear { align-self: stretch; justify-content: center; }
     }
     .card {
       background: var(--surface);
@@ -473,31 +528,51 @@
   </div>
 
   <div class="config">
-    <label>
-      Base URL
-      <input id="baseUrl" type="text" value="http://localhost:3000" />
-    </label>
-    <label>
-      API Key (Bearer / X-API-Key)
-      <input id="apiKey" type="text" placeholder="sk_live_..." />
-    </label>
-    <label>
-      Admin Key (X-Admin-Key)
-      <input id="adminKey" type="text" placeholder="ADMIN_API_KEY do .env" />
-    </label>
-    <label>
-      Accept-Language
-      <select id="lang">
-        <option value="pt-BR">pt-BR</option>
-        <option value="en">en</option>
-        <option value="es">es</option>
-        <option value="">(nenhum)</option>
-      </select>
-    </label>
-    <label>
-      &nbsp;
-      <button onclick="clearKey()" class="secondary">Limpar API Key</button>
-    </label>
+    <div class="config-row">
+      <label class="field field-grow">
+        <span class="field-label">Base URL</span>
+        <input id="baseUrl" type="text" value="http://localhost:3000" />
+      </label>
+      <label class="field field-compact">
+        <span class="field-label">Accept-Language</span>
+        <select id="lang">
+          <option value="pt-BR">pt-BR</option>
+          <option value="en">en</option>
+          <option value="es">es</option>
+          <option value="">(nenhum)</option>
+        </select>
+      </label>
+      <button onclick="clearKey()" class="secondary config-clear" title="Limpa apenas a User API Key">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Limpar User Key
+      </button>
+    </div>
+    <div>
+      <div class="config-section-label">Autenticação</div>
+      <div class="config-secrets" style="margin-top: 8px;">
+        <label class="field">
+          <div class="field-header">
+            <span class="field-label">User API Key</span>
+            <span class="field-pill">Bearer / X-API-Key</span>
+          </div>
+          <input id="apiKey" type="text" placeholder="sk_live_..." />
+        </label>
+        <label class="field">
+          <div class="field-header">
+            <span class="field-label">Admin Key</span>
+            <span class="field-pill">X-Admin-Key</span>
+          </div>
+          <input id="adminKey" type="text" placeholder="ADMIN_API_KEY do .env" />
+        </label>
+        <label class="field">
+          <div class="field-header">
+            <span class="field-label">Webhook Secret</span>
+            <span class="field-pill">X-Webhook-Secret</span>
+          </div>
+          <input id="webhookSecret" type="text" placeholder="WEBHOOK_SECRET do .env" />
+        </label>
+      </div>
+    </div>
   </div>
 
   <div class="grid">
@@ -545,9 +620,10 @@
     <!-- WEBHOOK -->
     <div class="card" style="grid-column: 1 / -1;">
       <div class="card-header">
-        <h2>Enviar pedido (webhook público)</h2>
+        <h2>Enviar pedido (webhook autenticado)</h2>
         <span><span class="method POST">POST</span><span class="endpoint">/webhooks/orders</span></span>
       </div>
+      <div class="hint">Usa o header <code>X-Webhook-Secret</code> — preencha o campo "Webhook Secret" no topo (valor da env <code>WEBHOOK_SECRET</code>).</div>
       <div class="scenario-buttons">
         <button onclick="loadScenario('valid')">Cenário: válido</button>
         <button onclick="loadScenario('replay')">Replay (key fixa)</button>
@@ -681,13 +757,18 @@
     // ---------- Persistência das keys ----------
     const STORAGE_KEY = 'orchestrator-api-key';
     const ADMIN_KEY_STORAGE = 'orchestrator-admin-key';
+    const WEBHOOK_SECRET_STORAGE = 'orchestrator-webhook-secret';
     document.getElementById('apiKey').value = localStorage.getItem(STORAGE_KEY) || '';
     document.getElementById('adminKey').value = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+    document.getElementById('webhookSecret').value = localStorage.getItem(WEBHOOK_SECRET_STORAGE) || '';
     document.getElementById('apiKey').addEventListener('input', (e) => {
       localStorage.setItem(STORAGE_KEY, e.target.value);
     });
     document.getElementById('adminKey').addEventListener('input', (e) => {
       localStorage.setItem(ADMIN_KEY_STORAGE, e.target.value);
+    });
+    document.getElementById('webhookSecret').addEventListener('input', (e) => {
+      localStorage.setItem(WEBHOOK_SECRET_STORAGE, e.target.value);
     });
 
     function clearKey() {
@@ -701,16 +782,19 @@
     }
 
     function adminKey() { return document.getElementById('adminKey').value.trim(); }
+    function webhookSecret() { return document.getElementById('webhookSecret').value.trim(); }
 
     // ---------- Helpers ----------
     function baseUrl() { return document.getElementById('baseUrl').value.replace(/\/$/, ''); }
     function lang() { return document.getElementById('lang').value; }
     function apiKey() { return document.getElementById('apiKey').value.trim(); }
 
-    function authHeaders(includeAuth = true, useAdminKey = false) {
+    function authHeaders(includeAuth = true, useAdminKey = false, useWebhookSecret = false) {
       const h = { 'Content-Type': 'application/json' };
       if (lang()) h['Accept-Language'] = lang();
-      if (useAdminKey && adminKey()) {
+      if (useWebhookSecret && webhookSecret()) {
+        h['X-Webhook-Secret'] = webhookSecret();
+      } else if (useAdminKey && adminKey()) {
         h['X-Admin-Key'] = adminKey();
       } else if (includeAuth && apiKey()) {
         h['Authorization'] = `Bearer ${apiKey()}`;
@@ -722,7 +806,7 @@
       return crypto.randomUUID();
     }
 
-    async function callApi({ method, path, body, includeAuth = true, useAdminKey = false, targetId, skipDefaultRender = false }) {
+    async function callApi({ method, path, body, includeAuth = true, useAdminKey = false, useWebhookSecret = false, targetId, skipDefaultRender = false }) {
       const target = document.getElementById(targetId);
       target.style.display = 'block';
       target.innerHTML = '<div class="status-badge">…</div><pre>Carregando...</pre>';
@@ -730,7 +814,7 @@
       try {
         const res = await fetch(`${baseUrl()}${path}`, {
           method,
-          headers: authHeaders(includeAuth, useAdminKey),
+          headers: authHeaders(includeAuth, useAdminKey, useWebhookSecret),
           body: body ? JSON.stringify(body) : undefined,
         });
         const text = await res.text();
@@ -884,8 +968,14 @@
         alert('JSON inválido: ' + err.message);
         return;
       }
+      if (!webhookSecret()) {
+        alert('Preencha o campo "Webhook Secret" no topo da página (valor da env WEBHOOK_SECRET).');
+        return;
+      }
       await callApi({
-        method: 'POST', path: '/webhooks/orders', body, includeAuth: false, targetId: 'webhook-response',
+        method: 'POST', path: '/webhooks/orders', body,
+        includeAuth: false, useWebhookSecret: true,
+        targetId: 'webhook-response',
       });
     }
 

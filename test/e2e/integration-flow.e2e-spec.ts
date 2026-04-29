@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { Language, OrderStatus, PrismaClient } from '@prisma/client';
 import nock from 'nock';
 import request from 'supertest';
-import { ADMIN_KEY, AWESOMEAPI_HOST, bootstrapTestApp } from '../helpers/test-app';
+import { ADMIN_KEY, AWESOMEAPI_HOST, bootstrapTestApp, postWebhook } from '../helpers/test-app';
 import { poll } from '../helpers/poll';
 
 const buildPayload = (currency = 'USD') => ({
@@ -53,9 +53,7 @@ describe('Integration flow (E2E)', () => {
     const payloads = Array.from({ length: 5 }, () => buildPayload());
 
     const submitResults = await Promise.all(
-      payloads.map((p) =>
-        request(app.getHttpServer()).post('/webhooks/orders').send(p),
-      ),
+      payloads.map((p) => postWebhook(app).send(p)),
     );
 
     const ids = submitResults.map((r) => r.body.id);
@@ -86,9 +84,7 @@ describe('Integration flow (E2E)', () => {
   it('failure-path completo: webhook com moeda não suportada → DLQ → GET /queue/metrics reflete', async () => {
     nock(AWESOMEAPI_HOST).persist().get(/\/json\/last\/AFN-BRL/).reply(404);
 
-    const submit = await request(app.getHttpServer())
-      .post('/webhooks/orders')
-      .send(buildPayload('AFN'));
+    const submit = await postWebhook(app).send(buildPayload('AFN'));
     expect(submit.status).toBe(202);
     const orderId: string = submit.body.id;
 
@@ -121,9 +117,7 @@ describe('Integration flow (E2E)', () => {
   it('idempotência sob carga: 5 envios paralelos com mesma chave → no máximo 1 pedido criado', async () => {
     const payload = buildPayload();
     const responses = await Promise.all(
-      Array.from({ length: 5 }, () =>
-        request(app.getHttpServer()).post('/webhooks/orders').send(payload),
-      ),
+      Array.from({ length: 5 }, () => postWebhook(app).send(payload)),
     );
 
     // 202 (sucesso/replay) e 409 (in-progress) são esperados. 500 é tolerado quando
