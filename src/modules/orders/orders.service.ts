@@ -63,38 +63,67 @@ export class OrdersService {
     this.metrics.recordOrderReceived();
     this.logger.log({ orderId: order.id, externalId: order.externalOrderId }, 'Order received');
 
-    return OrderMapper.toResponse(order, this.translateReason);
+    return OrderMapper.toResponse(order, this.makeTranslator());
   }
 
-  async findAll(query: ListOrdersQueryDto): Promise<ListOrdersResponseDto> {
+  async findAll(query: ListOrdersQueryDto, lang?: string): Promise<ListOrdersResponseDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where = query.status ? { status: query.status } : undefined;
 
+    const translate = this.makeTranslator(lang);
     const [orders, total] = await Promise.all([
       this.repository.findMany({ where, skip: (page - 1) * limit, take: limit }),
       this.repository.count(where),
     ]);
 
     return {
-      data: orders.map((o) => OrderMapper.toResponse(o, this.translateReason)),
+      data: orders.map((o) => OrderMapper.toResponse(o, translate)),
       meta: { page, limit, total, total_pages: Math.max(1, Math.ceil(total / limit)) },
     };
   }
 
-  async findById(id: string): Promise<OrderResponseDto> {
+  async findById(id: string, lang?: string): Promise<OrderResponseDto> {
     const order = await this.repository.findById(id);
     if (!order) throw new OrderNotFoundException(id);
-    return OrderMapper.toResponse(order, this.translateReason);
+    return OrderMapper.toResponse(order, this.makeTranslator(lang));
   }
 
   /**
-   * Bound (arrow function) para preservar `this` quando passado como callback.
-   * Lê o idioma do `I18nContext` corrente da requisição.
+   * Cria um tradutor pro `failureReason` que:
+   *  - aceita uma string serializada `{"key":"...","args":{...}}` (formato novo)
+   *    e passa os args pro nestjs-i18n pra interpolar `{attempts}` e cia;
+   *  - faz fallback pra tratar a string como chave crua (orders persistidos
+   *    antes da serialização ou reasons sem args).
+   *
+   * `lang` explícito tem precedência sobre o `I18nContext` (que pode estar
+   * desatualizado em rotas autenticadas, já que o resolver de user-language
+   * roda como middleware antes do guard popular `req.user`).
    */
-  private translateReason = (key: string): string => {
-    const lang = I18nContext.current()?.lang;
-    const translated = this.i18n.translate<string>(key, { lang });
-    return typeof translated === 'string' ? translated : key;
-  };
+  private makeTranslator(lang?: string) {
+    const effectiveLang = lang ?? I18nContext.current()?.lang;
+    return (raw: string): string => {
+      let key = raw;
+      let args: Record<string, unknown> | undefined;
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          'key' in parsed &&
+          typeof (parsed as { key: unknown }).key === 'string'
+        ) {
+          key = (parsed as { key: string }).key;
+          const rawArgs = (parsed as { args?: unknown }).args;
+          if (rawArgs && typeof rawArgs === 'object') {
+            args = rawArgs as Record<string, unknown>;
+          }
+        }
+      } catch {
+        // raw é uma key crua — segue com `key = raw` e sem args.
+      }
+      const translated = this.i18n.translate<string>(key, { lang: effectiveLang, args });
+      return typeof translated === 'string' ? translated : key;
+    };
+  }
 }

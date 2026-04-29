@@ -6,6 +6,9 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { User } from '@prisma/client';
+import { CurrentUser } from '@/shared/auth/current-user.decorator';
+import { languageDbToTag } from '@/shared/i18n/language.utils';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { ListOrdersResponseDto } from './dto/list-orders-response.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
@@ -22,15 +25,18 @@ export class OrdersController {
     summary: 'Lista pedidos com filtro opcional por status e paginação',
   })
   @ApiOkResponse({ type: ListOrdersResponseDto })
-  findAll(@Query() query: ListOrdersQueryDto): Promise<ListOrdersResponseDto> {
-    return this.orders.findAll(query);
+  findAll(
+    @Query() query: ListOrdersQueryDto,
+    @CurrentUser() user: User,
+  ): Promise<ListOrdersResponseDto> {
+    return this.orders.findAll(query, languageDbToTag(user.preferredLanguage));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Retorna um pedido pelo ID' })
   @ApiOkResponse({ type: OrderResponseDto })
   @ApiNotFoundResponse({ description: 'Pedido não encontrado.' })
-  findById(@Param('id') id: string): Promise<OrderResponseDto> {
-    return this.orders.findById(id);
+  findById(@Param('id') id: string, @CurrentUser() user: User): Promise<OrderResponseDto> {
+    return this.orders.findById(id, languageDbToTag(user.preferredLanguage));
   }
 }

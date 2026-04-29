@@ -2,12 +2,7 @@ import { ExecutionContext, Injectable } from '@nestjs/common';
 import { I18nResolver } from 'nestjs-i18n';
 import { User } from '@prisma/client';
 import { REQUEST_USER_KEY } from '@/shared/auth/current-user.decorator';
-
-const LANGUAGE_DB_TO_TAG: Record<string, string> = {
-  PT_BR: 'pt-BR',
-  EN: 'en',
-  ES: 'es',
-};
+import { languageDbToTag } from './language.utils';
 
 /**
  * Resolver de idioma específico do projeto: lê o `preferredLanguage` do usuário
@@ -18,6 +13,12 @@ const LANGUAGE_DB_TO_TAG: Record<string, string> = {
  *   1. Este resolver (req.user.preferredLanguage)
  *   2. AcceptLanguageResolver (header Accept-Language)
  *   3. fallbackLanguage (DEFAULT_LANGUAGE / 'en')
+ *
+ * NOTA: nestjs-i18n resolve via middleware, antes do `ApiKeyAuthGuard`. Nessa
+ * janela `req.user` ainda é undefined → retornamos undefined e a cascata cai
+ * pro AcceptLanguage. Pra rotas autenticadas que precisam do idioma do user
+ * (ex.: tradução de `failureReason` em GET /orders), o controller injeta a
+ * lang via `@CurrentUser()` e passa pra service explicitamente.
  */
 @Injectable()
 export class UserLanguageResolver implements I18nResolver {
@@ -28,6 +29,6 @@ export class UserLanguageResolver implements I18nResolver {
     const user = req[REQUEST_USER_KEY];
     if (!user) return undefined;
 
-    return LANGUAGE_DB_TO_TAG[user.preferredLanguage] ?? undefined;
+    return languageDbToTag(user.preferredLanguage);
   }
 }

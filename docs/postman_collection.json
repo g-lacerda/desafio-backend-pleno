@@ -128,7 +128,7 @@
       "name": "Webhooks (autenticado por segredo)",
       "item": [
         {
-          "name": "POST /webhooks/orders — válido",
+          "name": "✓ Sucesso — pedido válido (202)",
           "event": [
             {
               "listen": "prerequest",
@@ -156,11 +156,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Recebe pedido válido. Esperado: `202 Accepted`. O enriquecimento (USD→BRL via AwesomeAPI) acontece em background. **Requer `X-Webhook-Secret` (variável `webhookSecret`).**"
+            "description": "Recebe pedido válido. Esperado: **`202 Accepted`**. O enriquecimento (USD→BRL via AwesomeAPI) acontece em background — depois de 1-2s, o status muda pra `ENRICHED`. **Requer `X-Webhook-Secret` (variável `webhookSecret`).**"
           }
         },
         {
-          "name": "POST /webhooks/orders — replay",
+          "name": "✓ Sucesso — replay com mesma key (202 byte-a-byte)",
           "event": [
             {
               "listen": "prerequest",
@@ -185,31 +185,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Envie duas vezes seguidas. A segunda devolve byte-a-byte a mesma resposta da primeira (replay) sem criar pedido duplicado."
+            "description": "Envie duas vezes seguidas. Esperado: **`202 Accepted`** nas duas. A segunda devolve byte-a-byte a mesma resposta da primeira (replay) sem criar pedido duplicado."
           }
         },
         {
-          "name": "POST /webhooks/orders — hash divergente (422)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": { \"email\": \"OUTRO@example.com\", \"name\": \"Outro\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"demo-replay-fixed-key\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/webhooks/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["webhooks", "orders"]
-            },
-            "description": "Reusa a mesma chave do replay com payload diferente. Esperado: 422."
-          }
-        },
-        {
-          "name": "POST /webhooks/orders — moeda inválida (vai pra DLQ)",
+          "name": "⚠ Aceito (202) → falha assíncrona no enrichment → DLQ",
           "event": [
             {
               "listen": "prerequest",
@@ -237,11 +217,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "AFN (Afghan afghani) é um código ISO 4217 válido (passa na validação do DTO), mas a AwesomeAPI não tem o par AFN-BRL. Webhook aceita (202), o worker tenta enriquecer, recebe 4xx do provedor → falha imediata sem retry → status `FAILED_ENRICHMENT` + job na DLQ."
+            "description": "Esperado: **`202 Accepted`** no request — a falha é assíncrona. AFN (Afghan afghani) é um código ISO 4217 válido (passa na validação do DTO), mas a AwesomeAPI não tem o par AFN-BRL. Webhook aceita (202), o worker tenta enriquecer, recebe 4xx do provedor → falha imediata sem retry → status `FAILED_ENRICHMENT` + job na DLQ. Veja em `/admin/queues` (Bull Board) na fila `enrichment-dlq`."
           }
         },
         {
-          "name": "POST /webhooks/orders — payload inválido em pt-BR",
+          "name": "✗ Erro 400 — email inválido + items vazio (i18n pt-BR)",
           "request": {
             "method": "POST",
             "header": [
@@ -258,11 +238,63 @@
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Esperado: 400 com lista de erros traduzida em português."
+            "description": "Esperado: **`400 Bad Request`** com lista de erros traduzida em português (email inválido + unit_price com 3 casas decimais)."
           }
         },
         {
-          "name": "POST /webhooks/orders — sem secret (401)",
+          "name": "✗ Erro 400 — moeda inválida XXX (blacklist)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('orderId', 'ext-' + pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8));",
+                  "pm.variables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"u@e.com\", \"name\": \"Demo\" },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 10 }],\n  \"currency\": \"XXX\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Esperado: **`400 Bad Request`** com mensagem `currency must be a valid commercial currency code`. XXX é ISO 4217 mas representa \"sem moeda\"; o DTO mantém uma blacklist (`XXX`, `XTS`, `XAU`, `XAG`, `XPT`, `XPD`) pra rejeitar códigos não-comerciais de teste/metais. Diferente do cenário AFN: aqui a falha é **síncrona** (não chega no worker)."
+          }
+        },
+        {
+          "name": "✗ Erro 422 — hash divergente (mesma key, payload diferente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": { \"email\": \"OUTRO@example.com\", \"name\": \"Outro\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"demo-replay-fixed-key\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Reusa a mesma `idempotency_key` do replay com payload diferente. Esperado: **`422 Unprocessable Entity`**. Rode \"replay\" antes pra criar o registro inicial com a key `demo-replay-fixed-key`."
+          }
+        },
+        {
+          "name": "✗ Erro 401 — sem webhook secret",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -275,7 +307,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Esperado: 401 — POST /webhooks/orders requer `X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`."
+            "description": "Esperado: **`401 Unauthorized`** — `POST /webhooks/orders` requer `X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`."
           }
         }
       ]

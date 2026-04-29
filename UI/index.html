@@ -245,6 +245,7 @@
       font-size: 0.75rem;
       color: var(--text-muted);
       margin-top: 4px;
+      margin-bottom: 12px;
       font-style: italic;
     }
     .scenario-buttons {
@@ -259,8 +260,12 @@
       font-size: 0.75rem;
       padding: 6px 12px;
       background: var(--surface-2);
+      border-left: 3px solid var(--border);
     }
-    .scenario-buttons button:hover { background: var(--accent); }
+    .scenario-buttons button:hover { background: var(--accent); border-left-color: var(--accent); }
+    .scenario-buttons button.scenario-success { border-left-color: var(--success); }
+    .scenario-buttons button.scenario-warning { border-left-color: var(--warning); }
+    .scenario-buttons button.scenario-error { border-left-color: var(--danger); }
     .api-key-display {
       background: #052e16;
       color: #86efac;
@@ -625,11 +630,12 @@
       </div>
       <div class="hint">Usa o header <code>X-Webhook-Secret</code> — preencha o campo "Webhook Secret" no topo (valor da env <code>WEBHOOK_SECRET</code>).</div>
       <div class="scenario-buttons">
-        <button onclick="loadScenario('valid')">Cenário: válido</button>
-        <button onclick="loadScenario('replay')">Replay (key fixa)</button>
-        <button onclick="loadScenario('hash')">Hash divergente (mesma key, payload diferente)</button>
-        <button onclick="loadScenario('invalid')">Inválido (email malformado)</button>
-        <button onclick="loadScenario('dlq')">Moeda inválida → DLQ</button>
+        <button onclick="loadScenario('valid')" class="scenario-success">✓ Sucesso — pedido válido (202)</button>
+        <button onclick="loadScenario('replay')" class="scenario-success">✓ Sucesso — replay com mesma key (202 byte-a-byte)</button>
+        <button onclick="loadScenario('dlq-async')" class="scenario-warning">⚠ Aceito (202) → falha assíncrona no enrichment → DLQ</button>
+        <button onclick="loadScenario('invalid-email')" class="scenario-error">✗ Erro 400 — email inválido + items vazio</button>
+        <button onclick="loadScenario('invalid-currency')" class="scenario-error">✗ Erro 400 — moeda inválida (XXX, blacklist)</button>
+        <button onclick="loadScenario('hash-divergent')" class="scenario-error">✗ Erro 422 — hash divergente (mesma key, payload diferente)</button>
         <button onclick="randomizeWebhook()"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.36L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15.5 6.36L3 16"/><polyline points="3 21 3 16 8 16"/></svg> Randomizar order_id + key</button>
       </div>
       <div class="row single">
@@ -924,21 +930,28 @@
           currency: 'USD',
           idempotency_key: 'demo-replay-fixed-key',
         },
-        hash: {
+        'hash-divergent': {
           order_id: 'ext-replay-demo',
           customer: { email: 'OUTRO@example.com', name: 'Outro Cliente' },
           items: [{ sku: 'ABC123', qty: 2, unit_price: 59.90 }],
           currency: 'USD',
           idempotency_key: 'demo-replay-fixed-key',
         },
-        invalid: {
+        'invalid-email': {
           order_id: orderId,
           customer: { email: 'not-an-email', name: 'Demo' },
           items: [],
           currency: 'USD',
           idempotency_key: idemKey,
         },
-        dlq: {
+        'invalid-currency': {
+          order_id: orderId,
+          customer: { email: 'user@example.com', name: 'Demo' },
+          items: [{ sku: 'X', qty: 1, unit_price: 10 }],
+          currency: 'XXX',
+          idempotency_key: idemKey,
+        },
+        'dlq-async': {
           order_id: orderId,
           customer: { email: 'user@example.com', name: 'Demo' },
           items: [{ sku: 'X', qty: 1, unit_price: 10 }],

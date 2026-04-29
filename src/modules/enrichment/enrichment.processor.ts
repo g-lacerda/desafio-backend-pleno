@@ -77,8 +77,8 @@ export class EnrichmentProcessor extends WorkerHost {
       return;
     }
 
-    const failureKey = new EnrichmentFailedException(job.attemptsMade).key;
-    await this.orders.markFailedEnrichment(job.data.orderId, failureKey);
+    const failureReason = new EnrichmentFailedException(job.attemptsMade).serialize();
+    await this.orders.markFailedEnrichment(job.data.orderId, failureReason);
     await this.dlq.add(ENRICHMENT_JOB_NAME, {
       orderId: job.data.orderId,
       attempts: job.attemptsMade,

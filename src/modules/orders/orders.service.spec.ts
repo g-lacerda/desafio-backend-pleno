@@ -153,4 +153,66 @@ describe('OrdersService', () => {
       });
     });
   });
+
+  describe('tradução de failureReason', () => {
+    it('passa key + args do JSON serializado e usa o lang explícito', async () => {
+      const translate = jest.fn(
+        (key: string, opts: { lang?: string; args?: Record<string, unknown> }) => {
+          if (key === 'errors.enrichment.failed' && opts.lang === 'pt-BR') {
+            return `Falha após ${opts.args?.attempts} tentativas`;
+          }
+          return key;
+        },
+      );
+      const localI18n = { translate } as unknown as I18nService;
+      const localService = new OrdersService(
+        repository,
+        queue as unknown as Queue,
+        config,
+        localI18n,
+        metrics,
+      );
+
+      repository.findById.mockResolvedValue(
+        buildOrder({
+          id: 'ord-fail',
+          status: OrderStatus.FAILED_ENRICHMENT,
+          failureReason: JSON.stringify({
+            key: 'errors.enrichment.failed',
+            args: { attempts: 3 },
+          }),
+        }),
+      );
+
+      const result = await localService.findById('ord-fail', 'pt-BR');
+      expect(result.failure_reason).toBe('Falha após 3 tentativas');
+      expect(translate).toHaveBeenCalledWith(
+        'errors.enrichment.failed',
+        expect.objectContaining({ lang: 'pt-BR', args: { attempts: 3 } }),
+      );
+    });
+
+    it('faz fallback pra key crua quando failureReason não é JSON (legado)', async () => {
+      const translate = jest.fn((k: string) => `T:${k}`);
+      const localI18n = { translate } as unknown as I18nService;
+      const localService = new OrdersService(
+        repository,
+        queue as unknown as Queue,
+        config,
+        localI18n,
+        metrics,
+      );
+
+      repository.findById.mockResolvedValue(
+        buildOrder({
+          id: 'legacy',
+          status: OrderStatus.FAILED_ENRICHMENT,
+          failureReason: 'errors.enrichment.failed',
+        }),
+      );
+
+      const result = await localService.findById('legacy', 'en');
+      expect(result.failure_reason).toBe('T:errors.enrichment.failed');
+    });
+  });
 });
