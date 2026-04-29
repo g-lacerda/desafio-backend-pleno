@@ -10,10 +10,10 @@ API em NestJS para recebimento, validação e enriquecimento assíncrono de pedi
 
 O serviço é um ponto de entrada confiável para pedidos externos. Resolve quatro problemas clássicos de integração:
 
-1. **Acoplamento temporal** — webhook responde rápido (`202 Accepted`); processamento ocorre em background.
-2. **Idempotência** — o mesmo `idempotency_key` recebido N vezes tem efeito de uma única vez (replay byte-a-byte da resposta).
-3. **Falhas em cascata** — se a API externa de enriquecimento falha, retry com backoff exponencial e Dead Letter Queue após esgotamento.
-4. **Observabilidade operacional** — status persistido em banco, métricas Prometheus, UI de inspeção de filas, health check.
+1. **Acoplamento temporal**, webhook responde rápido (`202 Accepted`); processamento ocorre em background.
+2. **Idempotência**, o mesmo `idempotency_key` recebido N vezes tem efeito de uma única vez (replay byte-a-byte da resposta).
+3. **Falhas em cascata**, se a API externa de enriquecimento falha, retry com backoff exponencial e Dead Letter Queue após esgotamento.
+4. **Observabilidade operacional**, status persistido em banco, métricas Prometheus, UI de inspeção de filas, health check.
 
 ## Stack
 
@@ -39,11 +39,11 @@ O serviço é um ponto de entrada confiável para pedidos externos. Resolve quat
 
 ## Roadmap
 
-- [x] **Fase 1** — Fundação e infraestrutura.
-- [x] **Fase 2** — Recebimento do pedido (webhook, idempotência, throttler).
-- [x] **Fase 3** — Processamento assíncrono (worker, retry, DLQ, AwesomeAPI).
-- [x] **Fase 4** — Usuários, autenticação, consulta e administração.
-- [x] **Fase 5** — Polimento, scripts de seed, coleções Postman, README final.
+- [x] **Fase 1**, Fundação e infraestrutura.
+- [x] **Fase 2**, Recebimento do pedido (webhook, idempotência, throttler).
+- [x] **Fase 3**, Processamento assíncrono (worker, retry, DLQ, AwesomeAPI).
+- [x] **Fase 4**, Usuários, autenticação, consulta e administração.
+- [x] **Fase 5**, Polimento, scripts de seed, coleções Postman, README final.
 
 ---
 
@@ -53,9 +53,9 @@ O serviço é um ponto de entrada confiável para pedidos externos. Resolve quat
 
 | Ferramenta | Versão | Como instalar |
 |---|---|---|
-| **Node.js** | 20+ | Linux/macOS: [nvm](https://github.com/nvm-sh/nvm) (`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh \| bash` e depois `nvm install 20`) — Windows: [nodejs.org](https://nodejs.org/) (LTS) ou [nvm-windows](https://github.com/coreybutler/nvm-windows) |
-| **Docker** + **Docker Compose** | recente | Linux: [docs.docker.com/engine/install](https://docs.docker.com/engine/install/) (Engine + plugin Compose) — macOS/Windows: [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
-| **Git** | qualquer | Linux: `sudo apt install git` / `sudo dnf install git` — macOS: `brew install git` (ou Xcode CLT) — Windows: [git-scm.com](https://git-scm.com/download/win) |
+| **Node.js** | 20+ | Linux/macOS: [nvm](https://github.com/nvm-sh/nvm) (`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh \| bash` e depois `nvm install 20`), Windows: [nodejs.org](https://nodejs.org/) (LTS) ou [nvm-windows](https://github.com/coreybutler/nvm-windows) |
+| **Docker** + **Docker Compose** | recente | Linux: [docs.docker.com/engine/install](https://docs.docker.com/engine/install/) (Engine + plugin Compose), macOS/Windows: [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
+| **Git** | qualquer | Linux: `sudo apt install git` / `sudo dnf install git`, macOS: `brew install git` (ou Xcode CLT), Windows: [git-scm.com](https://git-scm.com/download/win) |
 
 <details>
 <summary>📋 Comandos copy-paste por sistema</summary>
@@ -96,58 +96,101 @@ Verifique tudo de uma vez:
 node -v && docker -v && docker compose version && git --version
 ```
 
-### Setup recomendado para avaliação (2 comandos, só Docker)
+Escolha **uma** das duas opções abaixo. Use a **Opção A (Docker)** se quer apenas avaliar/testar, ela é mais simples e não exige Node instalado. Use a **Opção B (Local)** apenas se for modificar o código com hot reload.
 
-> ✅ **Não precisa instalar Node, npm, Prisma CLI nem rodar migrations manualmente.** O `docker compose up` sobe Postgres + Redis + Backend + UI; o container do backend roda `prisma migrate deploy` automaticamente no startup.
+---
 
+### Opção A, Docker (recomendado para avaliação)
+
+> ✅ Não precisa instalar Node, npm, Prisma CLI nem rodar migrations manualmente. O `docker compose up` sobe Postgres + Redis + Backend + UI; o container do backend roda `prisma migrate deploy` automaticamente no startup.
+
+**1. Clone e configure:**
 ```bash
-git clone <url-do-repo>
+git clone https://github.com/g-lacerda/desafio-backend-pleno.git
 cd desafio-backend-pleno
-cp .env.example .env             # 1. config
-docker compose up -d --build     # 2. sobe Postgres + Redis + Backend (com migrations) + UI
+cp .env.example .env
 ```
 
-Acesse:
-- **UI**: http://localhost:8080
-- **API**: http://localhost:3000
-- **Swagger**: http://localhost:3000/docs
-- **Bull Board**: http://localhost:3000/admin/queues?admin_key=change-me-to-a-strong-random-secret
+**2. Suba tudo:**
+```bash
+docker compose up -d --build
+```
 
-### Provisionar usuários demo
-
+**3. Provisione 3 usuários demo (gera as API keys):**
 ```bash
 docker compose exec app npm run seed:users
 ```
 
-Cria 3 usuários (`demo-pt@inbazz.com`, `demo-en@inbazz.com`, `demo-es@inbazz.com`) e imprime as 3 API keys no console (a senha demo de todos é `demo-pass-1234`). Cole as chaves nas variáveis `apiKeyPtBR`/`apiKeyEN`/`apiKeyES` do Postman ou no campo "API Key" da UI.
+Imprime as 3 API keys (`demo-pt@inbazz.com`, `demo-en@inbazz.com`, `demo-es@inbazz.com`). Senha de todos: `demo-pass-1234`. Cole as chaves nas variáveis `apiKeyPtBR`/`EN`/`ES` do Postman ou no campo "API Key" da UI.
 
-### Disparar webhooks de demonstração
-
+**4. (Opcional) Dispare cenários de demonstração:**
 ```bash
-docker compose exec app npm run seed:webhook                    # 1 pedido válido
-docker compose exec app npm run seed:webhook -- --scenario=duplicate   # replay (mesma chave 2x)
-docker compose exec app npm run seed:webhook -- --scenario=hash        # hash divergente (422)
-docker compose exec app npm run seed:webhook -- --scenario=invalid     # payload inválido (400)
-docker compose exec app npm run seed:webhook:load               # 50 pedidos paralelos
-docker compose exec app npm run seed:webhook:dlq                # moeda AFN → vai pra DLQ
-docker compose exec app npm run seed:webhook:all                # roda todos os cenários
+docker compose exec app npm run seed:webhook                          # 1 pedido válido
+docker compose exec app npm run seed:webhook -- --scenario=duplicate  # replay (mesma chave 2x)
+docker compose exec app npm run seed:webhook -- --scenario=hash       # hash divergente (422)
+docker compose exec app npm run seed:webhook -- --scenario=invalid    # payload inválido (400)
+docker compose exec app npm run seed:webhook:load                     # 50 pedidos paralelos
+docker compose exec app npm run seed:webhook:dlq                      # moeda AFN → vai pra DLQ
+docker compose exec app npm run seed:webhook:all                      # roda todos os cenários
 ```
 
-### Setup alternativo para desenvolvimento (com hot reload)
+**Acesse:**
 
-Se quiser modificar o código com `nest start --watch`, precisa de Node 20+ local:
+| Serviço | URL |
+|---|---|
+| UI Console | http://localhost:8080 |
+| API | http://localhost:3000 |
+| Swagger | http://localhost:3000/docs |
+| Bull Board | http://localhost:3000/admin/queues?admin_key=change-me-to-a-strong-random-secret |
+| Health | http://localhost:3000/health |
+| Métricas Prometheus | http://localhost:3000/metrics |
 
+**Para parar tudo:**
 ```bash
+docker compose down
+```
+
+---
+
+### Opção B, Local (para desenvolvimento com hot reload)
+
+Use esta opção apenas se for modificar o código e quiser `nest start --watch`. Requer Node 20+ instalado.
+
+**1. Clone, configure e instale dependências:**
+```bash
+git clone https://github.com/g-lacerda/desafio-backend-pleno.git
+cd desafio-backend-pleno
 cp .env.example .env
 npm install
-docker compose up -d postgres redis    # só infra (NÃO sobe o app/ui em containers)
-npm run prisma:migrate                 # aplica migrations
-npm run start:dev                      # servidor com watch mode
-# UI em outro terminal:
+```
+
+**2. Suba só a infra (Postgres + Redis):**
+```bash
+docker compose up -d postgres redis
+```
+
+**3. Aplique as migrations:**
+```bash
+npm run prisma:migrate
+```
+
+**4. Suba o backend em watch mode:**
+```bash
+npm run start:dev
+```
+
+**5. (Em outro terminal) Suba a UI:**
+```bash
 npx serve UI -l 8080
 ```
 
-Os scripts `seed:users`, `seed:webhook` etc. funcionam direto (sem `docker compose exec`).
+**6. (Em outro terminal) Provisione usuários e dispare cenários:**
+```bash
+npm run seed:users
+npm run seed:webhook        # ou outras variações
+```
+
+**Acesse:** as mesmas URLs da Opção A (UI em :8080, API em :3000).
 
 ---
 
@@ -169,8 +212,8 @@ Os scripts `seed:users`, `seed:webhook` etc. funcionam direto (sem `docker compo
 
 ### Dois níveis de autenticação
 
-- **User API key** (`sk_live_...`) — gerada por `POST /users`, identifica um usuário individual. Usada nos endpoints de consulta (`/orders`, `/queue/metrics`).
-- **Admin key** — segredo único compartilhado, vem da env `ADMIN_API_KEY` (mín 16 chars). Usada pra operações administrativas: provisionar usuários (`POST /users`) e acessar Bull Board (`/admin/queues`). Em produção real, ficaria atrás de um secret manager (AWS Secrets, Vault, etc.).
+- **User API key** (`sk_live_...`), gerada por `POST /users`, identifica um usuário individual. Usada nos endpoints de consulta (`/orders`, `/queue/metrics`).
+- **Admin key**, segredo único compartilhado, vem da env `ADMIN_API_KEY` (mín 16 chars). Usada pra operações administrativas: provisionar usuários (`POST /users`) e acessar Bull Board (`/admin/queues`). Em produção real, ficaria atrás de um secret manager (AWS Secrets, Vault, etc.).
 
 ---
 
@@ -231,7 +274,7 @@ Padrão de mercado (Stripe, OpenAI, Anthropic): cada usuário tem uma API key pe
 - `crypto.randomBytes(32).toString('base64url')` → 256 bits de entropia.
 - Banco guarda só `SHA-256(key)` indexado (lookup O(1) sem expor a chave).
 - Plain text retornado **uma única vez** na criação do usuário.
-- Sem expiração natural — a chave dura até ser rotacionada.
+- Sem expiração natural, a chave dura até ser rotacionada.
 
 **Recuperação se perder a chave:** `POST /auth/login` com email + senha (bcrypt) gera **nova API key** e invalida a anterior. A senha é informada na criação do usuário e armazenada como hash bcrypt. Por design, não diferenciamos "email não existe" de "senha incorreta" no erro 401 (mensagem genérica `errors.auth.invalidCredentials` para evitar enumeração).
 
@@ -249,14 +292,14 @@ Mensagens de exceções de negócio são armazenadas como **chaves i18n** (ex.: 
 
 - Cada módulo segue `controller → service → repository → mapper → entity`.
 - Anti-corruption layer entre DTOs (decimal/snake_case) e domínio (cents/camelCase).
-- Sem CQRS / Event Sourcing / Hexagonal completa — over-engineering pro escopo.
+- Sem CQRS / Event Sourcing / Hexagonal completa, over-engineering pro escopo.
 
 ### Worker BullMQ com retry/DLQ tipado
 
 - Erros transientes (5xx, timeout) → retry com backoff exponencial.
 - Erros permanentes (4xx, moeda inválida) → `UnrecoverableError` BullMQ → DLQ imediato.
 - `@OnWorkerEvent('failed')` marca `FAILED_ENRICHMENT` quando esgota tentativas.
-- DLQ é uma fila separada (`enrichment-dlq`) sem worker — apenas armazena para inspeção.
+- DLQ é uma fila separada (`enrichment-dlq`) sem worker, apenas armazena para inspeção.
 
 ---
 
@@ -286,7 +329,7 @@ npm run test:e2e        # E2E com Testcontainers (requer Docker rodando)
 
 **Cobertura atual:** ~95% statements / ~86% branches.
 
-**E2E:** sobe Postgres + Redis efêmeros via [Testcontainers](https://testcontainers.com/), aplica as migrations e roda os fluxos completos. Cada test file usa um `BULL_PREFIX` único pra isolar filas — pode rodar em paralelo sem conflito. AwesomeAPI mockada com [`nock`](https://github.com/nock/nock).
+**E2E:** sobe Postgres + Redis efêmeros via [Testcontainers](https://testcontainers.com/), aplica as migrations e roda os fluxos completos. Cada test file usa um `BULL_PREFIX` único pra isolar filas, pode rodar em paralelo sem conflito. AwesomeAPI mockada com [`nock`](https://github.com/nock/nock).
 
 **Cenários cobertos:**
 
@@ -300,10 +343,10 @@ npm run test:e2e        # E2E com Testcontainers (requer Docker rodando)
 
 ## Documentação adicional
 
-- `/docs` — Swagger UI interativa.
-- [docs/openapi.json](docs/openapi.json) — spec OpenAPI 3.0 versionado (regenere com `npm run docs:export`).
-- [docs/postman_collection.json](docs/postman_collection.json) — coleção Postman curada com todos os cenários e variáveis para 3 API keys (uma por idioma).
-- [DESAFIO.md](DESAFIO.md) — especificação original do desafio.
+- `/docs`, Swagger UI interativa.
+- [docs/openapi.json](docs/openapi.json), spec OpenAPI 3.0 versionado (regenere com `npm run docs:export`).
+- [docs/postman_collection.json](docs/postman_collection.json), coleção Postman curada com todos os cenários e variáveis para 3 API keys (uma por idioma).
+- [DESAFIO.md](DESAFIO.md), especificação original do desafio.
 
 ### Importar no Postman
 
@@ -338,7 +381,7 @@ Todas validadas via Joi schema em `src/shared/config/env.validation.ts`. Ver `.e
 
 ## Trade-offs assumidos
 
-- **Validation pipes com Accept-Language em vez de user.preferredLanguage** — pipes rodam após guards mas o `I18nContext` foi setado por middleware antes do guard. Erros de validação em rotas autenticadas usam o `Accept-Language`, não a preferência do usuário. Mensagens de exceções de negócio (404, 422, etc.) usam a preferência do usuário corretamente via `HttpExceptionFilter`.
+- **Validation pipes com Accept-Language em vez de user.preferredLanguage**, pipes rodam após guards mas o `I18nContext` foi setado por middleware antes do guard. Erros de validação em rotas autenticadas usam o `Accept-Language`, não a preferência do usuário. Mensagens de exceções de negócio (404, 422, etc.) usam a preferência do usuário corretamente via `HttpExceptionFilter`.
 
 ---
 
@@ -391,14 +434,12 @@ test/
 
 ## Sobre o candidato
 
-**Guilherme Lacerda** — desenvolvedor backend disponível para a vaga de Backend Pleno na Inbazz.
+**Guilherme Lacerda**, desenvolvedor backend disponível para a vaga de Backend Pleno na Inbazz.
 
-| | |
+| Campo | Dados |
 |---|---|
 | 📧 E-mail | [lacerda@kooda.dev](mailto:lacerda@kooda.dev) |
 | 📱 Telefone | [+55 (37) 99837-2717](tel:+5537998372717) |
 | 💼 LinkedIn | [linkedin.com/in/g-lacerda](https://linkedin.com/in/g-lacerda) |
 | 💻 GitHub | [github.com/g-lacerda](https://github.com/g-lacerda) |
 | 🌐 Portfólio | [kooda.dev](https://kooda.dev) |
-
-> Aberto a discutir as decisões técnicas, alternativas consideradas e próximos passos do projeto. Resposta rápida pelos canais acima.
