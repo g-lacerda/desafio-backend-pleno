@@ -8,6 +8,7 @@ describe('envValidationSchema', () => {
     REDIS_HOST: 'localhost',
     REDIS_PORT: 6379,
     DEFAULT_LANGUAGE: 'en',
+    ADMIN_API_KEY: 'sufficient-length-admin-key',
   };
 
   it('aceita configuração válida', () => {
@@ -19,12 +20,29 @@ describe('envValidationSchema', () => {
     const { error, value } = envValidationSchema.validate({
       DATABASE_URL: validEnv.DATABASE_URL,
       REDIS_HOST: validEnv.REDIS_HOST,
+      ADMIN_API_KEY: validEnv.ADMIN_API_KEY,
     });
     expect(error).toBeUndefined();
     expect(value.PORT).toBe(3000);
     expect(value.NODE_ENV).toBe('development');
     expect(value.REDIS_PORT).toBe(6379);
     expect(value.DEFAULT_LANGUAGE).toBe('en');
+  });
+
+  it('rejeita ADMIN_API_KEY ausente', () => {
+    const { error } = envValidationSchema.validate({
+      ...validEnv,
+      ADMIN_API_KEY: undefined,
+    });
+    expect(error?.message).toContain('ADMIN_API_KEY');
+  });
+
+  it('rejeita ADMIN_API_KEY com menos de 16 caracteres', () => {
+    const { error } = envValidationSchema.validate({
+      ...validEnv,
+      ADMIN_API_KEY: 'short',
+    });
+    expect(error?.message).toContain('ADMIN_API_KEY');
   });
 
   it('rejeita ausência de DATABASE_URL', () => {

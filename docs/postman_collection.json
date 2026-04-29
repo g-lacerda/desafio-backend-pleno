@@ -2,37 +2,138 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4789-aaaa-orchestrator0001",
     "name": "Order Orchestrator — Inbazz",
-    "description": "Coleção do desafio backend pleno (Inbazz). Atualizada a cada fase concluída.\n\n**Fase atual: 3 — Processamento Assíncrono.**\n\n**Como usar:**\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável `baseUrl` já está em `http://localhost:3001`.\n3. Suba a aplicação localmente: `docker compose up -d postgres redis && npm run start:dev`.\n4. Execute as requests.\n\n**Sobre o webhook (POST /webhooks/orders):**\n- O campo `idempotency_key` é gerado automaticamente via pre-request script (UUID novo por requisição).\n- O endpoint responde `202 Accepted` imediatamente; o enriquecimento (consulta de câmbio na AwesomeAPI) acontece em background via worker BullMQ.\n- Para ver o pedido evoluir de `RECEIVED` → `ENRICHING` → `ENRICHED`, use a variação `POST válido + observar enriquecimento` (envia 1 e dispara replay 2s depois).\n- Para forçar `FAILED_ENRICHMENT` + DLQ, envie a variação com `currency: \"XXX\"` (moeda não suportada → 4xx no provedor → falha imediata).\n\nA partir da Fase 4, será necessário usar API Key (`Authorization: Bearer <key>`) nos endpoints autenticados.",
+    "description": "Coleção completa do desafio backend pleno (Inbazz). Cobre todos os endpoints com cenários de sucesso, falha e i18n.\n\n**Como usar:**\n\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável de coleção `baseUrl` aponta para `http://localhost:3001` (porta do `.env` local).\n3. Suba a infra: `docker compose up -d postgres redis && npm run start:dev`.\n4. Rode `npm run seed:users` para criar 3 usuários demo (pt-BR, en, es) — copie as 3 API keys impressas no console e cole nas variáveis `apiKeyPtBR`, `apiKeyEN` e `apiKeyES`.\n5. Use os endpoints autenticados — escolha qual variável de chave usar conforme o idioma desejado.\n\n**Estrutura:**\n- Health, Documentação, i18n: públicos.\n- POST /webhooks/orders: público (sistemas externos).\n- POST /users: público (provisionamento).\n- GET /orders, GET /queue/metrics: protegidos por API key (Authorization: Bearer ou X-API-Key).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Health",
-      "description": "Endpoints de saúde do serviço.",
+      "name": "Auth & Users",
       "item": [
         {
-          "name": "GET /health",
+          "name": "POST /users — pt-BR (admin)",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
-            "description": "Verifica se o serviço, o Postgres e o Redis estão operacionais."
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Admin-Key", "value": "{{adminKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-pt@inbazz.com\",\n  \"name\": \"Demo PT-BR\",\n  \"password\": \"demo-pass-1234\",\n  \"preferredLanguage\": \"PT_BR\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] },
+            "description": "Cria usuário pt-BR. Requer `X-Admin-Key` (variável `adminKey` da coleção, vinda da env `ADMIN_API_KEY`). Resposta inclui `api_key` em texto puro — somente aqui."
+          }
+        },
+        {
+          "name": "POST /users — en (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Admin-Key", "value": "{{adminKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-en@inbazz.com\",\n  \"name\": \"Demo EN\",\n  \"password\": \"demo-pass-1234\",\n  \"preferredLanguage\": \"EN\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "POST /users — es (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Admin-Key", "value": "{{adminKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-es@inbazz.com\",\n  \"name\": \"Demo ES\",\n  \"password\": \"demo-pass-1234\",\n  \"preferredLanguage\": \"ES\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "POST /users — sem admin key (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sem-auth@inbazz.com\",\n  \"name\": \"Sem Auth\",\n  \"password\": \"demo-pass-1234\",\n  \"preferredLanguage\": \"PT_BR\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] },
+            "description": "Esperado: 401 — POST /users requer admin key."
+          }
+        },
+        {
+          "name": "POST /users — email duplicado (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Admin-Key", "value": "{{adminKey}}" },
+              { "key": "Accept-Language", "value": "pt-BR" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-pt@inbazz.com\",\n  \"name\": \"Outro\",\n  \"password\": \"demo-pass-1234\",\n  \"preferredLanguage\": \"PT_BR\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] },
+            "description": "Esperado: 409 com mensagem traduzida em pt-BR."
+          }
+        },
+        {
+          "name": "POST /auth/login — rotaciona API key (perdeu a chave?)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-pt@inbazz.com\",\n  \"password\": \"demo-pass-1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Autentica com email + senha (bcrypt) e gera uma **nova API key**, invalidando a anterior. A resposta traz `api_key` em texto puro — copie e cole na variável da coleção (`apiKeyPtBR`/`apiKeyEN`/`apiKeyES`)."
+          }
+        },
+        {
+          "name": "POST /auth/login — credenciais inválidas (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept-Language", "value": "pt-BR" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-pt@inbazz.com\",\n  \"password\": \"senha-errada\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Esperado: 401 com mensagem genérica em pt-BR ('Email ou senha inválidos' — não diferencia email errado de senha errada por segurança)."
           }
         }
       ]
     },
     {
-      "name": "Webhooks",
-      "description": "Endpoint público invocado por sistemas externos (e-commerce, marketplaces, gateways).",
+      "name": "Webhooks (público)",
       "item": [
         {
-          "name": "POST /webhooks/orders — payload válido",
+          "name": "POST /webhooks/orders — válido",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "// Gera UUIDs novos para garantir idempotência fresca a cada chamada.",
                   "pm.variables.set('orderId', 'ext-' + pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8));",
                   "pm.variables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
                 ],
@@ -45,26 +146,23 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": {\n    \"email\": \"user@example.com\",\n    \"name\": \"Ana Silva\"\n  },\n  \"items\": [\n    { \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }\n  ],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"user@example.com\", \"name\": \"Ana Silva\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/webhooks/orders",
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Recebe um pedido válido. Esperado: `202 Accepted` com o pedido persistido (status `RECEIVED`, total convertido para string com 2 decimais)."
+            "description": "Recebe pedido válido. Esperado: `202 Accepted`. O enriquecimento (USD→BRL via AwesomeAPI) acontece em background."
           }
         },
         {
-          "name": "POST /webhooks/orders — replay (mesma chave + payload)",
+          "name": "POST /webhooks/orders — replay",
           "event": [
             {
               "listen": "prerequest",
               "script": {
-                "exec": [
-                  "// Use uma idempotency_key fixa para demonstrar replay.",
-                  "pm.variables.set('idemKey', 'demo-replay-fixed-key-001');"
-                ],
+                "exec": ["pm.variables.set('idemKey', 'demo-replay-fixed-key');"],
                 "type": "text/javascript"
               }
             }
@@ -74,14 +172,14 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": {\n    \"email\": \"user@example.com\",\n    \"name\": \"Ana Silva\"\n  },\n  \"items\": [\n    { \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }\n  ],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
+              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": { \"email\": \"user@example.com\", \"name\": \"Ana Silva\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/webhooks/orders",
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Envie esta requisição **2 vezes**. A segunda devolve a mesma resposta da primeira (replay byte-a-byte) sem criar pedido duplicado."
+            "description": "Envie duas vezes seguidas. A segunda devolve byte-a-byte a mesma resposta da primeira (replay) sem criar pedido duplicado."
           }
         },
         {
@@ -91,31 +189,14 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": {\n    \"email\": \"OUTRO-EMAIL@example.com\",\n    \"name\": \"Outro Cliente\"\n  },\n  \"items\": [\n    { \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }\n  ],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"demo-replay-fixed-key-001\"\n}"
+              "raw": "{\n  \"order_id\": \"ext-replay-demo\",\n  \"customer\": { \"email\": \"OUTRO@example.com\", \"name\": \"Outro\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"demo-replay-fixed-key\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/webhooks/orders",
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Reusa a mesma `idempotency_key` do replay anterior, mas com **payload diferente** (email diferente). Esperado: `422 Unprocessable Entity` com mensagem indicando reuso indevido."
-          }
-        },
-        {
-          "name": "POST /webhooks/orders — payload inválido (400)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"order_id\": \"ext-invalid\",\n  \"customer\": {\n    \"email\": \"not-an-email\",\n    \"name\": \"Ana\"\n  },\n  \"items\": [],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"any-key-here\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/webhooks/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["webhooks", "orders"]
-            },
-            "description": "Email inválido + items vazio. Esperado: `400 Bad Request` com lista de erros de validação."
+            "description": "Reusa a mesma chave do replay com payload diferente. Esperado: 422."
           }
         },
         {
@@ -137,14 +218,14 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": {\n    \"email\": \"u@e.com\",\n    \"name\": \"Demo\"\n  },\n  \"items\": [\n    { \"sku\": \"X\", \"qty\": 1, \"unit_price\": 10 }\n  ],\n  \"currency\": \"XXX\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"u@e.com\", \"name\": \"Demo\" },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 10 }],\n  \"currency\": \"AFN\",\n  \"idempotency_key\": \"{{idemKey}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/webhooks/orders",
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Webhook aceita (`202`), mas o worker tenta enriquecer com a moeda `XXX` que a AwesomeAPI não suporta → falha imediata sem retry → status `FAILED_ENRICHMENT` + job na DLQ. Inspecione o pedido com Bull Board (Fase 4) ou consultando direto no banco."
+            "description": "AFN (Afghan afghani) é um código ISO 4217 válido (passa na validação do DTO), mas a AwesomeAPI não tem o par AFN-BRL. Webhook aceita (202), o worker tenta enriquecer, recebe 4xx do provedor → falha imediata sem retry → status `FAILED_ENRICHMENT` + job na DLQ."
           }
         },
         {
@@ -157,28 +238,153 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"order_id\": \"ext-invalid-pt\",\n  \"customer\": {\n    \"email\": \"not-an-email\",\n    \"name\": \"Ana\"\n  },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 9.999 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"another-key\"\n}"
+              "raw": "{\n  \"order_id\": \"ext-invalid-pt\",\n  \"customer\": { \"email\": \"not-an-email\", \"name\": \"Ana\" },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 9.999 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"any-key\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/webhooks/orders",
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "orders"]
             },
-            "description": "Mostra mensagens de validação em pt-BR via `Accept-Language`. Esperado: 400 com mensagens em português."
+            "description": "Esperado: 400 com lista de erros traduzida em português."
           }
         }
       ]
     },
     {
-      "name": "Documentação",
+      "name": "Orders (autenticado)",
       "item": [
+        {
+          "name": "GET /orders — listar (user pt-BR)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyPtBR}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"],
+              "query": []
+            },
+            "description": "Lista pedidos. Mensagens de erro retornadas no idioma pt-BR (preferência do usuário autenticado)."
+          }
+        },
+        {
+          "name": "GET /orders — listar (user en)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyEN}}" }],
+            "url": { "raw": "{{baseUrl}}/orders", "host": ["{{baseUrl}}"], "path": ["orders"] }
+          }
+        },
+        {
+          "name": "GET /orders — listar (user es)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyES}}" }],
+            "url": { "raw": "{{baseUrl}}/orders", "host": ["{{baseUrl}}"], "path": ["orders"] }
+          }
+        },
+        {
+          "name": "GET /orders — filtro por status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyEN}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders?status=ENRICHED&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "status", "value": "ENRICHED" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /orders/:id — pedido inexistente (404 traduzido pt-BR)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyPtBR}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Esperado: 404 com `Pedido com id ... não encontrado` (idioma resolvido pelo `preferredLanguage` do usuário autenticado)."
+          }
+        },
+        {
+          "name": "GET /orders sem auth → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/orders", "host": ["{{baseUrl}}"], "path": ["orders"] },
+            "description": "Esperado: 401 — Chave de API obrigatória (mensagem em inglês por default; envie Accept-Language para outro idioma)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Queue & Admin",
+      "item": [
+        {
+          "name": "GET /queue/metrics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyEN}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/queue/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["queue", "metrics"]
+            },
+            "description": "Métricas agregadas das filas `enrichment-queue` e `enrichment-dlq` (waiting/active/completed/failed/delayed)."
+          }
+        },
+        {
+          "name": "GET /admin/queues (Bull Board UI — admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Admin-Key", "value": "{{adminKey}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/queues",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "queues"]
+            },
+            "description": "UI interativa do Bull Board. Requer `X-Admin-Key`. Para acessar via navegador (que não envia headers facilmente), use uma extensão como ModHeader ou abra com `curl -H 'X-Admin-Key: <chave>' -L http://localhost:3001/admin/queues`."
+          }
+        },
+        {
+          "name": "GET /admin/queues — sem admin key (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/queues",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "queues"]
+            },
+            "description": "Esperado: 401 — Bull Board exige admin key."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health, Docs e Métricas",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        },
         {
           "name": "GET /docs (Swagger UI)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/docs", "host": ["{{baseUrl}}"], "path": ["docs"] },
-            "description": "Abra no navegador para a UI interativa."
+            "url": { "raw": "{{baseUrl}}/docs", "host": ["{{baseUrl}}"], "path": ["docs"] }
           }
         },
         {
@@ -190,18 +396,25 @@
               "raw": "{{baseUrl}}/docs-json",
               "host": ["{{baseUrl}}"],
               "path": ["docs-json"]
-            },
-            "description": "Spec OpenAPI 3.0 cru, importável em outras ferramentas."
+            }
+          }
+        },
+        {
+          "name": "GET /metrics (Prometheus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/metrics", "host": ["{{baseUrl}}"], "path": ["metrics"] }
           }
         }
       ]
     },
     {
-      "name": "i18n (demonstração)",
-      "description": "Tradução automática via `Accept-Language` (en, pt-BR, es).",
+      "name": "i18n via Accept-Language",
+      "description": "Demonstração da cascata: quando não há usuário autenticado, o idioma vem do header `Accept-Language`.",
       "item": [
         {
-          "name": "404 traduzido — Inglês",
+          "name": "404 traduzido — en",
           "request": {
             "method": "GET",
             "header": [{ "key": "Accept-Language", "value": "en" }],
@@ -213,7 +426,7 @@
           }
         },
         {
-          "name": "404 traduzido — Português (pt-BR)",
+          "name": "404 traduzido — pt-BR",
           "request": {
             "method": "GET",
             "header": [{ "key": "Accept-Language", "value": "pt-BR" }],
@@ -225,7 +438,7 @@
           }
         },
         {
-          "name": "404 traduzido — Espanhol (es)",
+          "name": "404 traduzido — es",
           "request": {
             "method": "GET",
             "header": [{ "key": "Accept-Language", "value": "es" }],
@@ -244,7 +457,31 @@
       "key": "baseUrl",
       "value": "http://localhost:3001",
       "type": "string",
-      "description": "URL base. Local: porta 3001 (via .env). Padrão do .env.example: 3000."
+      "description": "URL base. Local: 3001 (via .env). Padrão do .env.example: 3000."
+    },
+    {
+      "key": "apiKeyPtBR",
+      "value": "",
+      "type": "string",
+      "description": "API key do user pt-BR (rode `npm run seed:users` e cole aqui)."
+    },
+    {
+      "key": "apiKeyEN",
+      "value": "",
+      "type": "string",
+      "description": "API key do user en (rode `npm run seed:users` e cole aqui)."
+    },
+    {
+      "key": "apiKeyES",
+      "value": "",
+      "type": "string",
+      "description": "API key do user es (rode `npm run seed:users` e cole aqui)."
+    },
+    {
+      "key": "adminKey",
+      "value": "local-dev-admin-secret-key-do-not-use-in-prod",
+      "type": "string",
+      "description": "Admin key (do .env / variável ADMIN_API_KEY). Necessária para POST /users e Bull Board."
     }
   ]
 }

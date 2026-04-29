@@ -17,12 +17,14 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { Public } from '@/shared/auth/public.decorator';
 import { IdempotencyInterceptor } from '@/shared/idempotency/idempotency.interceptor';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { OrdersService } from './orders.service';
 
 @ApiTags('Webhooks')
+@Public()
 @Controller('webhooks/orders')
 @UseGuards(ThrottlerGuard)
 export class WebhooksController {

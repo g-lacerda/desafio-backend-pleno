@@ -27,6 +27,23 @@ export class OrderRepository {
     return this.prisma.order.findUnique({ where: { externalOrderId } });
   }
 
+  findMany(params: {
+    where?: Prisma.OrderWhereInput;
+    skip?: number;
+    take?: number;
+  }): Promise<Order[]> {
+    return this.prisma.order.findMany({
+      where: params.where,
+      skip: params.skip,
+      take: params.take,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  count(where?: Prisma.OrderWhereInput): Promise<number> {
+    return this.prisma.order.count({ where });
+  }
+
   markEnriching(id: string): Promise<Order> {
     return this.prisma.order.update({
       where: { id },

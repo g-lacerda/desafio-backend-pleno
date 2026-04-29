@@ -6,6 +6,7 @@ import nock from 'nock';
 import { loadTestcontainersEnv } from './load-testcontainers';
 
 const AWESOMEAPI_TEST_HOST = 'http://localhost:39101';
+const TEST_ADMIN_KEY = 'test-admin-key-for-e2e-only-1234567890';
 
 interface BootstrapOptions {
   envOverrides?: Record<string, string>;
@@ -32,6 +33,7 @@ export async function bootstrapTestApp(options: BootstrapOptions = {}): Promise<
   process.env.ENRICHMENT_MAX_ATTEMPTS = process.env.ENRICHMENT_MAX_ATTEMPTS ?? '3';
   process.env.ENRICHMENT_BACKOFF_BASE_MS = process.env.ENRICHMENT_BACKOFF_BASE_MS ?? '50';
   process.env.WEBHOOK_THROTTLE_LIMIT = process.env.WEBHOOK_THROTTLE_LIMIT ?? '1000';
+  process.env.ADMIN_API_KEY = TEST_ADMIN_KEY;
   // Cada bootstrap gera um prefix único — isola filas entre test files E2E rodando
   // contra o mesmo Redis. Workers vazados de outros test files não veem os jobs.
   process.env.BULL_PREFIX = `bull-test-${randomUUID().slice(0, 8)}`;
@@ -50,16 +52,18 @@ export async function bootstrapTestApp(options: BootstrapOptions = {}): Promise<
   }
 
   const { AppModule } = await import('@/app.module');
-  const { setupApp } = await import('@/app.setup');
+  const { setupApp, setupSwagger } = await import('@/app.setup');
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication({ bufferLogs: true });
   setupApp(app);
+  setupSwagger(app);
   await app.init();
   return app;
 }
 
 export const AWESOMEAPI_HOST = AWESOMEAPI_TEST_HOST;
+export const ADMIN_KEY = TEST_ADMIN_KEY;
 
 async function flushRedis(): Promise<void> {
   const redis = new Redis({

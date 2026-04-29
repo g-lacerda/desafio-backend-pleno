@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, Queue, UnrecoverableError } from 'bullmq';
 import { OrderRepository } from '@/modules/orders/repositories/order.repository';
+import { MetricsService } from '@/shared/metrics/metrics.service';
 import {
   ENRICHMENT_JOB_NAME,
   QUEUE_ENRICHMENT,
@@ -26,6 +27,7 @@ export class EnrichmentProcessor extends WorkerHost {
     private readonly orders: OrderRepository,
     @InjectQueue(QUEUE_ENRICHMENT_DLQ) private readonly dlq: Queue,
     config: ConfigService,
+    private readonly metrics: MetricsService,
   ) {
     super();
     this.maxAttempts = config.getOrThrow<number>('ENRICHMENT_MAX_ATTEMPTS');
@@ -67,6 +69,7 @@ export class EnrichmentProcessor extends WorkerHost {
     const exhausted = job.attemptsMade >= this.maxAttempts || error.name === 'UnrecoverableError';
 
     if (!exhausted) {
+      this.metrics.recordEnrichmentAttempt('retry');
       this.logger.warn(
         { jobId: job.id, orderId: job.data.orderId, attempt: job.attemptsMade, err: error.message },
         'Enrichment attempt failed; will retry',
@@ -82,6 +85,7 @@ export class EnrichmentProcessor extends WorkerHost {
       lastError: error.message,
     });
 
+    this.metrics.recordEnrichmentAttempt('failed');
     this.logger.error(
       { jobId: job.id, orderId: job.data.orderId, attempts: job.attemptsMade, err: error.message },
       'Enrichment exhausted retries; moved to DLQ',

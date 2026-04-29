@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, Queue, UnrecoverableError } from 'bullmq';
 import { OrderRepository } from '@/modules/orders/repositories/order.repository';
+import { MetricsService } from '@/shared/metrics/metrics.service';
 import { EnrichmentJobData, EnrichmentProcessor } from './enrichment.processor';
 import { EnrichmentService } from './enrichment.service';
 import { ExchangeRateUnavailableException } from './exceptions/exchange-rate-unavailable.exception';
@@ -39,7 +40,12 @@ describe('EnrichmentProcessor', () => {
       markFailedEnrichment: jest.fn(),
     } as unknown as jest.Mocked<OrderRepository>;
     dlq = { add: jest.fn() };
-    processor = new EnrichmentProcessor(enrichment, orders, dlq as unknown as Queue, config);
+    const metrics = {
+      recordEnrichmentAttempt: jest.fn(),
+      recordOrderEnriched: jest.fn(),
+      recordOrderReceived: jest.fn(),
+    } as unknown as MetricsService;
+    processor = new EnrichmentProcessor(enrichment, orders, dlq as unknown as Queue, config, metrics);
   });
 
   describe('process', () => {

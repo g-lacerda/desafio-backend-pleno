@@ -3,16 +3,30 @@ import { Expose, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsISO4217CurrencyCode,
   IsNotEmpty,
+  IsNotIn,
   IsObject,
   IsString,
-  Length,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { i18nValidationMessage as i18n } from 'nestjs-i18n';
 import { CustomerDto } from './customer.dto';
 import { OrderItemDto } from './order-item.dto';
+
+/**
+ * Códigos ISO 4217 "especiais" — tecnicamente válidos na norma mas não
+ * representam moedas comerciais. Rejeitados explicitamente porque não fazem
+ * sentido em pedidos:
+ *   XXX (no currency), XTS (testing), XAU/XAG/XPT/XPD (metais preciosos),
+ *   XBA/XBB/XBC/XBD (European Composite Units), XDR (FMI Special Drawing
+ *   Rights), XSU (SUCRE descontinuado), XUA (ADB Unit of Account).
+ */
+const NON_COMMERCIAL_CURRENCY_CODES = [
+  'XXX', 'XTS', 'XAU', 'XAG', 'XPT', 'XPD',
+  'XBA', 'XBB', 'XBC', 'XBD', 'XDR', 'XSU', 'XUA',
+];
 
 export class CreateOrderDto {
   @ApiProperty({ example: 'ext-123', description: 'ID do pedido na fonte externa.' })
@@ -35,9 +49,13 @@ export class CreateOrderDto {
   @Type(() => OrderItemDto)
   items!: OrderItemDto[];
 
-  @ApiProperty({ example: 'USD', description: 'Código ISO 4217 (3 letras).' })
+  @ApiProperty({
+    example: 'USD',
+    description: 'Código ISO 4217 (ex.: USD, EUR, BRL, GBP). Validado contra a lista oficial.',
+  })
   @IsString({ message: i18n('validation.isString') })
-  @Length(3, 3, { message: i18n('validation.maxLength') })
+  @IsISO4217CurrencyCode({ message: i18n('validation.isCurrency') })
+  @IsNotIn(NON_COMMERCIAL_CURRENCY_CODES, { message: i18n('validation.isCurrency') })
   currency!: string;
 
   @ApiProperty({

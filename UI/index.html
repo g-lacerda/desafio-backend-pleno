@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Orchestrator — Console</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #8b5cf6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.5rem; }
+    h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
+    .header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .header p { color: var(--text-muted); margin: 4px 0 0; font-size: 0.9rem; }
+    .config {
+      display: grid;
+      grid-template-columns: 1.5fr 2.5fr 2fr 1fr 1fr;
+      gap: 12px;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 8px;
+      margin-bottom: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border: 1px solid var(--border);
+    }
+    .config label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    input, select, textarea {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+    textarea {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      min-height: 120px;
+      resize: vertical;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .config { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .method {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+    .method.GET { background: var(--info); }
+    .method.POST { background: var(--success); }
+    .endpoint { font-family: monospace; color: var(--text-muted); font-size: 0.85rem; margin-left: 8px; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .row.single { grid-template-columns: 1fr; }
+    .row label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.85rem;
+      width: 100%;
+      margin-top: 8px;
+      transition: background 0.15s;
+    }
+    button:hover { background: #2563eb; }
+    button:disabled { background: var(--surface-2); cursor: not-allowed; }
+    button.secondary {
+      background: var(--surface-2);
+    }
+    button.secondary:hover { background: #475569; }
+    .response {
+      margin-top: 12px;
+      background: #020617;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+      font-size: 0.8rem;
+      max-height: 400px;
+      overflow: auto;
+      border: 1px solid var(--border);
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .status-2xx { background: var(--success); color: white; }
+    .status-3xx { background: var(--info); color: white; }
+    .status-4xx { background: var(--warning); color: white; }
+    .status-5xx { background: var(--danger); color: white; }
+    .status-error { background: var(--danger); color: white; }
+    pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }
+    .json-string { color: #86efac; }
+    .json-number { color: #fcd34d; }
+    .json-key { color: #93c5fd; }
+    .json-bool, .json-null { color: #c4b5fd; }
+    .quick-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .quick-links a {
+      background: var(--surface-2);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+    }
+    .quick-links a:hover { border-color: var(--accent); }
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-style: italic;
+    }
+    .scenario-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .scenario-buttons button {
+      width: auto;
+      margin: 0;
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      background: var(--surface-2);
+    }
+    .scenario-buttons button:hover { background: var(--accent); }
+    .api-key-display {
+      background: #052e16;
+      color: #86efac;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      margin-top: 8px;
+      word-break: break-all;
+      border: 1px solid #166534;
+    }
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: auto;
+      padding: 4px 10px;
+      font-size: 0.7rem;
+      margin: 0 0 0 8px;
+    }
+    .copy-btn:hover { color: var(--accent); }
+
+    /* ----- Tabelas e renderização de listas ----- */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    .data-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+    }
+    .data-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(59, 130, 246, 0.05); }
+    .id-cell {
+      font-family: 'SF Mono', Monaco, monospace;
+      color: #fcd34d;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 0.7rem;
+    }
+    .id-cell:hover { color: var(--accent); }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .status-RECEIVED { background: var(--info); color: white; }
+    .status-ENRICHING { background: var(--warning); color: white; }
+    .status-ENRICHED { background: var(--success); color: white; }
+    .status-FAILED_ENRICHMENT { background: var(--danger); color: white; }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 8px 16px;
+      font-size: 0.85rem;
+    }
+    .detail-grid .label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .detail-grid .value {
+      font-family: 'SF Mono', Monaco, monospace;
+      word-break: break-all;
+    }
+    .detail-section {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .detail-section h3 {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: var(--accent);
+    }
+
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .health-card {
+      background: var(--surface-2);
+      padding: 12px;
+      border-radius: 6px;
+      border-left: 3px solid var(--success);
+    }
+    .health-card.down { border-left-color: var(--danger); }
+    .health-card .name {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .health-card .value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .health-card.up .value { color: var(--success); }
+    .health-card.down .value { color: var(--danger); }
+
+    .queue-section { margin-top: 12px; }
+    .queue-section + .queue-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .queue-name {
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.9rem;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .counters {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .counter {
+      background: var(--surface-2);
+      padding: 12px 8px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .counter .label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .counter .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .counter.waiting .value { color: var(--text); }
+    .counter.active .value { color: var(--info); }
+    .counter.completed .value { color: var(--success); }
+    .counter.failed .value { color: var(--danger); }
+    .counter.delayed .value { color: var(--warning); }
+
+    .pagination-info {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .toggle-raw {
+      display: inline-block;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-decoration: underline;
+      margin-top: 8px;
+    }
+    .raw-json {
+      margin-top: 8px;
+      background: #020617;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      max-height: 200px;
+      overflow: auto;
+    }
+
+    /* ----- Embed frame (HTML/text inline) ----- */
+    .embed-wrapper {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: white;
+      margin-top: 8px;
+    }
+    .embed-wrapper iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+      display: block;
+    }
+    .embed-text {
+      background: #020617;
+      color: #86efac;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      max-height: 600px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .embed-info {
+      background: #052e16;
+      border-left: 3px solid var(--success);
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+    .embed-warning {
+      background: #422006;
+      border-left: 3px solid var(--warning);
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+    code {
+      background: var(--surface-2);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+
+    /* ----- Icons (SVG inline, estilo Lucide) ----- */
+    .icon {
+      display: inline-block;
+      vertical-align: text-bottom;
+      width: 1em;
+      height: 1em;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+    h1 .icon, h2 .icon { width: 1.1em; height: 1.1em; margin-right: 6px; }
+    button .icon, a .icon { margin-right: 4px; }
+    .icon-success { color: var(--success); }
+    .icon-danger { color: var(--danger); }
+    .icon-warning { color: var(--warning); }
+    .icon-accent { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1><svg class="icon" viewBox="0 0 24 24"><path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z"/><path d="M18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z"/><path d="M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"/></svg> Order Orchestrator — Console</h1>
+    <p>UI mínima pra testar todos os endpoints. As respostas aparecem abaixo de cada formulário.</p>
+  </div>
+
+  <div class="config">
+    <label>
+      Base URL
+      <input id="baseUrl" type="text" value="http://localhost:3001" />
+    </label>
+    <label>
+      API Key (Bearer / X-API-Key)
+      <input id="apiKey" type="text" placeholder="sk_live_..." />
+    </label>
+    <label>
+      Admin Key (X-Admin-Key)
+      <input id="adminKey" type="text" placeholder="ADMIN_API_KEY do .env" />
+    </label>
+    <label>
+      Accept-Language
+      <select id="lang">
+        <option value="pt-BR">pt-BR</option>
+        <option value="en">en</option>
+        <option value="es">es</option>
+        <option value="">(nenhum)</option>
+      </select>
+    </label>
+    <label>
+      &nbsp;
+      <button onclick="clearKey()" class="secondary">Limpar API Key</button>
+    </label>
+  </div>
+
+  <div class="grid">
+
+    <!-- USERS -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Criar usuário</h2>
+        <span><span class="method POST">POST</span><span class="endpoint">/users</span></span>
+      </div>
+      <div class="row">
+        <label>Email <input id="user-email" value="demo@inbazz.com" /></label>
+        <label>Nome <input id="user-name" value="Demo User" /></label>
+      </div>
+      <div class="row">
+        <label>Senha (min 8) <input id="user-password" value="demo-pass-1234" /></label>
+        <label>Idioma
+          <select id="user-lang">
+            <option value="PT_BR">PT_BR</option>
+            <option value="EN">EN</option>
+            <option value="ES">ES</option>
+          </select>
+        </label>
+      </div>
+      <button onclick="createUser()">Criar usuário</button>
+      <div class="hint">A `api_key` retornada é salva automaticamente no campo "API Key" acima.</div>
+      <div id="user-response" class="response" style="display:none"></div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Login (rotaciona API key)</h2>
+        <span><span class="method POST">POST</span><span class="endpoint">/auth/login</span></span>
+      </div>
+      <div class="row">
+        <label>Email <input id="login-email" value="demo@inbazz.com" /></label>
+        <label>Senha <input id="login-password" value="demo-pass-1234" type="password" /></label>
+      </div>
+      <button onclick="login()">Login</button>
+      <div class="hint">Use se perdeu a chave. A chave anterior é invalidada e a nova fica salva no campo acima.</div>
+      <div id="login-response" class="response" style="display:none"></div>
+    </div>
+
+    <!-- WEBHOOK -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <h2>Enviar pedido (webhook público)</h2>
+        <span><span class="method POST">POST</span><span class="endpoint">/webhooks/orders</span></span>
+      </div>
+      <div class="scenario-buttons">
+        <button onclick="loadScenario('valid')">Cenário: válido</button>
+        <button onclick="loadScenario('replay')">Replay (key fixa)</button>
+        <button onclick="loadScenario('hash')">Hash divergente (mesma key, payload diferente)</button>
+        <button onclick="loadScenario('invalid')">Inválido (email malformado)</button>
+        <button onclick="loadScenario('dlq')">Moeda inválida → DLQ</button>
+        <button onclick="randomizeWebhook()"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.36L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15.5 6.36L3 16"/><polyline points="3 21 3 16 8 16"/></svg> Randomizar order_id + key</button>
+      </div>
+      <div class="row single">
+        <label>Payload JSON
+          <textarea id="webhook-payload"></textarea>
+        </label>
+      </div>
+      <button onclick="sendWebhook()">Enviar webhook</button>
+      <div id="webhook-response" class="response" style="display:none"></div>
+    </div>
+
+    <!-- ORDERS LIST -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Listar pedidos</h2>
+        <span><span class="method GET">GET</span><span class="endpoint">/orders</span></span>
+      </div>
+      <div class="row">
+        <label>Status
+          <select id="orders-status">
+            <option value="">(todos)</option>
+            <option value="RECEIVED">RECEIVED</option>
+            <option value="ENRICHING">ENRICHING</option>
+            <option value="ENRICHED">ENRICHED</option>
+            <option value="FAILED_ENRICHMENT">FAILED_ENRICHMENT</option>
+          </select>
+        </label>
+        <label>Limit <input id="orders-limit" type="number" value="20" min="1" max="100" /></label>
+      </div>
+      <div class="row">
+        <label>Page <input id="orders-page" type="number" value="1" min="1" /></label>
+      </div>
+      <button onclick="listOrders()">Buscar</button>
+      <div id="orders-response" class="response" style="display:none"></div>
+    </div>
+
+    <!-- ORDER DETAIL -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Buscar pedido por ID</h2>
+        <span><span class="method GET">GET</span><span class="endpoint">/orders/:id</span></span>
+      </div>
+      <div class="row single">
+        <label>Order ID (UUID)
+          <input id="order-id" placeholder="00000000-0000-0000-0000-000000000000" />
+        </label>
+      </div>
+      <button onclick="getOrder()">Buscar</button>
+      <div class="hint">Dica: clique em qualquer ID na lista de pedidos pra preencher.</div>
+      <div id="order-response" class="response" style="display:none"></div>
+    </div>
+
+    <!-- QUEUE METRICS -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Métricas da fila</h2>
+        <span><span class="method GET">GET</span><span class="endpoint">/queue/metrics</span></span>
+      </div>
+      <button onclick="queueMetrics()">Atualizar</button>
+      <div id="queue-response" class="response" style="display:none"></div>
+    </div>
+
+    <!-- HEALTH -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Health check</h2>
+        <span><span class="method GET">GET</span><span class="endpoint">/health</span></span>
+      </div>
+      <button onclick="health()">Verificar</button>
+      <div id="health-response" class="response" style="display:none"></div>
+    </div>
+
+    <!-- HTML / TEXT PAGES -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <h2>Páginas HTML / Text</h2>
+      </div>
+      <div class="scenario-buttons">
+        <button onclick="embedHtml('/docs', 'embed-frame')"><svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Swagger UI</button>
+        <button onclick="embedBullBoard()"><svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/><line x1="3" y1="20" x2="21" y2="20"/></svg> Bull Board (admin)</button>
+        <button onclick="embedText('/metrics', 'embed-frame')"><svg class="icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> Prometheus /metrics</button>
+        <button onclick="embedJson('/docs-json', 'embed-frame')"><svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg> OpenAPI JSON</button>
+        <button onclick="document.getElementById('embed-frame').innerHTML=''"><svg class="icon" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg> Limpar</button>
+      </div>
+      <div class="quick-links" id="quick-links">
+        <a href="#" data-path="/docs" target="_blank"><svg class="icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Swagger em nova aba</a>
+        <a href="#" data-path="/admin/queues" data-admin="1" target="_blank"><svg class="icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Bull Board em nova aba (com admin key)</a>
+        <a href="#" data-path="/metrics" target="_blank"><svg class="icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> /metrics em nova aba</a>
+        <a href="#" data-path="/docs-json" target="_blank"><svg class="icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> OpenAPI em nova aba</a>
+      </div>
+      <div class="hint" style="margin-top:12px">
+        <svg class="icon icon-warning" viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+        O link "Bull Board" acima injeta <code>?admin_key=...</code> na URL —
+        o servidor seta um cookie HttpOnly após validar, então a UI funciona completa
+        (incluindo os AJAX internos pra listar jobs). Sem clicar pelo link, abrir
+        <code>/admin/queues</code> direto retorna 401.
+      </div>
+      <div id="embed-frame" style="margin-top:12px"></div>
+    </div>
+
+  </div>
+
+  <script>
+    // ---------- Icons (SVG inline) ----------
+    const ICONS = {
+      target:        '<path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z"/><path d="M18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z"/><path d="M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"/>',
+      refresh:       '<path d="M3 12a9 9 0 0 1 15.5-6.36L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15.5 6.36L3 16"/><polyline points="3 21 3 16 8 16"/>',
+      book:          '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+      barChart:      '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/><line x1="3" y1="20" x2="21" y2="20"/>',
+      trendingUp:    '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+      fileText:      '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>',
+      external:      '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+      lightbulb:     '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>',
+      check:         '<polyline points="20 6 9 17 4 12"/>',
+      x:             '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+      chevronToggle: '<polyline points="7 15 12 20 17 15"/><polyline points="7 9 12 4 17 9"/>',
+      alert:         '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+      package:       '<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+      eraser:        '<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
+    };
+    function icon(name, extraClass = '') {
+      return `<svg class="icon ${extraClass}" viewBox="0 0 24 24">${ICONS[name] ?? ''}</svg>`;
+    }
+
+    // ---------- Persistência das keys ----------
+    const STORAGE_KEY = 'orchestrator-api-key';
+    const ADMIN_KEY_STORAGE = 'orchestrator-admin-key';
+    document.getElementById('apiKey').value = localStorage.getItem(STORAGE_KEY) || '';
+    document.getElementById('adminKey').value = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+    document.getElementById('apiKey').addEventListener('input', (e) => {
+      localStorage.setItem(STORAGE_KEY, e.target.value);
+    });
+    document.getElementById('adminKey').addEventListener('input', (e) => {
+      localStorage.setItem(ADMIN_KEY_STORAGE, e.target.value);
+    });
+
+    function clearKey() {
+      document.getElementById('apiKey').value = '';
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function setApiKey(key) {
+      document.getElementById('apiKey').value = key;
+      localStorage.setItem(STORAGE_KEY, key);
+    }
+
+    function adminKey() { return document.getElementById('adminKey').value.trim(); }
+
+    // ---------- Helpers ----------
+    function baseUrl() { return document.getElementById('baseUrl').value.replace(/\/$/, ''); }
+    function lang() { return document.getElementById('lang').value; }
+    function apiKey() { return document.getElementById('apiKey').value.trim(); }
+
+    function authHeaders(includeAuth = true, useAdminKey = false) {
+      const h = { 'Content-Type': 'application/json' };
+      if (lang()) h['Accept-Language'] = lang();
+      if (useAdminKey && adminKey()) {
+        h['X-Admin-Key'] = adminKey();
+      } else if (includeAuth && apiKey()) {
+        h['Authorization'] = `Bearer ${apiKey()}`;
+      }
+      return h;
+    }
+
+    function uuid() {
+      return crypto.randomUUID();
+    }
+
+    async function callApi({ method, path, body, includeAuth = true, useAdminKey = false, targetId, skipDefaultRender = false }) {
+      const target = document.getElementById(targetId);
+      target.style.display = 'block';
+      target.innerHTML = '<div class="status-badge">…</div><pre>Carregando...</pre>';
+
+      try {
+        const res = await fetch(`${baseUrl()}${path}`, {
+          method,
+          headers: authHeaders(includeAuth, useAdminKey),
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const text = await res.text();
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { parsed = text; }
+        if (!skipDefaultRender) {
+          renderResponse(targetId, res.status, parsed);
+        }
+        return { status: res.status, body: parsed };
+      } catch (err) {
+        target.innerHTML =
+          `<div class="status-badge status-error">Network error</div>` +
+          `<pre>${escapeHtml(err.message)}</pre>` +
+          `<div class="hint">Verifique se o backend está rodando em ${escapeHtml(baseUrl())}.</div>`;
+        return null;
+      }
+    }
+
+    function renderResponse(targetId, status, body) {
+      const target = document.getElementById(targetId);
+      const cls =
+        status >= 200 && status < 300 ? 'status-2xx' :
+        status >= 300 && status < 400 ? 'status-3xx' :
+        status >= 400 && status < 500 ? 'status-4xx' :
+        'status-5xx';
+      const json = typeof body === 'object' ? JSON.stringify(body, null, 2) : String(body);
+      target.innerHTML =
+        `<div class="status-badge ${cls}">${status}</div>` +
+        `<pre>${syntaxHighlight(json)}</pre>`;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function syntaxHighlight(json) {
+      return escapeHtml(json).replace(
+        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d+)?([eE][+-]?\d+)?)/g,
+        (match) => {
+          let cls = 'json-number';
+          if (/^"/.test(match)) {
+            cls = /:$/.test(match) ? 'json-key' : 'json-string';
+          } else if (/true|false/.test(match)) {
+            cls = 'json-bool';
+          } else if (/null/.test(match)) {
+            cls = 'json-null';
+          }
+          return `<span class="${cls}">${match}</span>`;
+        }
+      );
+    }
+
+    // ---------- USERS ----------
+    async function createUser() {
+      if (!adminKey()) {
+        alert('Defina a Admin Key primeiro (campo no topo). Pegue ela do .env (ADMIN_API_KEY).');
+        return;
+      }
+      const body = {
+        email: document.getElementById('user-email').value,
+        name: document.getElementById('user-name').value,
+        password: document.getElementById('user-password').value,
+        preferredLanguage: document.getElementById('user-lang').value,
+      };
+      const result = await callApi({
+        method: 'POST', path: '/users', body, useAdminKey: true, targetId: 'user-response',
+      });
+      if (result && result.status === 201 && result.body.api_key) {
+        setApiKey(result.body.api_key);
+        const target = document.getElementById('user-response');
+        target.innerHTML += `<div class="api-key-display">${icon('check', 'icon-success')} API key salva: ${result.body.api_key}</div>`;
+      }
+    }
+
+    // ---------- LOGIN ----------
+    async function login() {
+      const body = {
+        email: document.getElementById('login-email').value,
+        password: document.getElementById('login-password').value,
+      };
+      const result = await callApi({
+        method: 'POST', path: '/auth/login', body, includeAuth: false, targetId: 'login-response',
+      });
+      if (result && result.status === 200 && result.body.api_key) {
+        setApiKey(result.body.api_key);
+        const target = document.getElementById('login-response');
+        target.innerHTML += `<div class="api-key-display">${icon('check', 'icon-success')} Nova API key salva: ${result.body.api_key}</div>`;
+      }
+    }
+
+    // ---------- WEBHOOKS ----------
+    function loadScenario(name) {
+      const orderId = `ext-${uuid().slice(0, 8)}`;
+      const idemKey = uuid();
+      const scenarios = {
+        valid: {
+          order_id: orderId,
+          customer: { email: 'user@example.com', name: 'Ana Silva' },
+          items: [{ sku: 'ABC123', qty: 2, unit_price: 59.90 }],
+          currency: 'USD',
+          idempotency_key: idemKey,
+        },
+        replay: {
+          order_id: 'ext-replay-demo',
+          customer: { email: 'user@example.com', name: 'Ana Silva' },
+          items: [{ sku: 'ABC123', qty: 2, unit_price: 59.90 }],
+          currency: 'USD',
+          idempotency_key: 'demo-replay-fixed-key',
+        },
+        hash: {
+          order_id: 'ext-replay-demo',
+          customer: { email: 'OUTRO@example.com', name: 'Outro Cliente' },
+          items: [{ sku: 'ABC123', qty: 2, unit_price: 59.90 }],
+          currency: 'USD',
+          idempotency_key: 'demo-replay-fixed-key',
+        },
+        invalid: {
+          order_id: orderId,
+          customer: { email: 'not-an-email', name: 'Demo' },
+          items: [],
+          currency: 'USD',
+          idempotency_key: idemKey,
+        },
+        dlq: {
+          order_id: orderId,
+          customer: { email: 'user@example.com', name: 'Demo' },
+          items: [{ sku: 'X', qty: 1, unit_price: 10 }],
+          currency: 'AFN',
+          idempotency_key: idemKey,
+        },
+      };
+      document.getElementById('webhook-payload').value = JSON.stringify(scenarios[name], null, 2);
+    }
+
+    function randomizeWebhook() {
+      try {
+        const payload = JSON.parse(document.getElementById('webhook-payload').value);
+        payload.order_id = `ext-${uuid().slice(0, 8)}`;
+        payload.idempotency_key = uuid();
+        document.getElementById('webhook-payload').value = JSON.stringify(payload, null, 2);
+      } catch (err) {
+        alert('Payload inválido: ' + err.message);
+      }
+    }
+
+    async function sendWebhook() {
+      let body;
+      try {
+        body = JSON.parse(document.getElementById('webhook-payload').value);
+      } catch (err) {
+        alert('JSON inválido: ' + err.message);
+        return;
+      }
+      await callApi({
+        method: 'POST', path: '/webhooks/orders', body, includeAuth: false, targetId: 'webhook-response',
+      });
+    }
+
+    // ---------- ORDERS ----------
+    async function listOrders() {
+      const params = new URLSearchParams();
+      const status = document.getElementById('orders-status').value;
+      if (status) params.set('status', status);
+      params.set('page', document.getElementById('orders-page').value);
+      params.set('limit', document.getElementById('orders-limit').value);
+      const result = await callApi({
+        method: 'GET', path: `/orders?${params}`, targetId: 'orders-response', skipDefaultRender: true,
+      });
+      if (result && result.status === 200) {
+        renderOrdersList(result.body, 'orders-response');
+      } else if (result) {
+        renderResponse('orders-response', result.status, result.body);
+      }
+    }
+
+    function renderOrdersList(payload, targetId) {
+      const target = document.getElementById(targetId);
+      const data = payload.data ?? [];
+      const meta = payload.meta ?? {};
+
+      if (data.length === 0) {
+        target.innerHTML =
+          `<div class="status-badge status-2xx">200</div>` +
+          `<div class="pagination-info">página ${meta.page ?? '?'} de ${meta.total_pages ?? '?'} — total: ${meta.total ?? 0}</div>` +
+          `<div class="empty-state">Nenhum pedido encontrado.</div>` +
+          rawJsonToggle(payload, targetId);
+        return;
+      }
+
+      let html =
+        `<div class="status-badge status-2xx">200</div>` +
+        `<div class="pagination-info">página ${meta.page} de ${meta.total_pages} — total: ${meta.total} (mostrando ${data.length})</div>` +
+        `<table class="data-table"><thead><tr>` +
+        `<th>ID</th><th>External</th><th>Cliente</th><th>Currency</th><th>Original</th><th>Convertido</th><th>Status</th><th>Created</th>` +
+        `</tr></thead><tbody>`;
+      for (const o of data) {
+        const shortId = o.id.slice(0, 8);
+        const created = o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '';
+        html +=
+          `<tr>` +
+          `<td><span class="id-cell" title="${o.id}" onclick="fillOrderId('${o.id}')">${shortId}…</span></td>` +
+          `<td>${escapeHtml(o.external_order_id ?? '')}</td>` +
+          `<td>${escapeHtml(o.customer?.name ?? '')}<br><small style="color:var(--text-muted)">${escapeHtml(o.customer?.email ?? '')}</small></td>` +
+          `<td>${escapeHtml(o.currency ?? '')}</td>` +
+          `<td>${escapeHtml(o.total_original ?? '')}</td>` +
+          `<td>${o.total_converted ?? '<em style="color:var(--text-muted)">—</em>'}</td>` +
+          `<td><span class="status-pill status-${o.status}">${o.status}</span></td>` +
+          `<td><small>${created}</small></td>` +
+          `</tr>`;
+      }
+      html += `</tbody></table>` + rawJsonToggle(payload, targetId);
+      target.innerHTML = html;
+    }
+
+    function fillOrderId(id) {
+      document.getElementById('order-id').value = id;
+      document.getElementById('order-id').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    async function getOrder() {
+      const id = document.getElementById('order-id').value.trim();
+      if (!id) { alert('Informe um ID'); return; }
+      const result = await callApi({
+        method: 'GET', path: `/orders/${id}`, targetId: 'order-response', skipDefaultRender: true,
+      });
+      if (result && result.status === 200) {
+        renderOrderDetail(result.body, 'order-response');
+      } else if (result) {
+        renderResponse('order-response', result.status, result.body);
+      }
+    }
+
+    function renderOrderDetail(o, targetId) {
+      const target = document.getElementById(targetId);
+      const items = (o.items ?? [])
+        .map((it) => `<tr><td>${escapeHtml(it.sku)}</td><td>${it.qty}</td><td>${escapeHtml(it.unit_price ?? '')}</td></tr>`)
+        .join('');
+      target.innerHTML =
+        `<div class="status-badge status-2xx">200</div>` +
+        `<div class="detail-grid">` +
+        kv('ID interno', o.id) +
+        kv('Order ID externo', o.external_order_id) +
+        kv('Cliente', `${escapeHtml(o.customer?.name ?? '')} &lt;${escapeHtml(o.customer?.email ?? '')}&gt;`) +
+        kv('Moeda', o.currency) +
+        kv('Total original', o.total_original) +
+        kv('Total convertido (BRL)', o.total_converted ?? '<em style="color:var(--text-muted)">—</em>') +
+        kv('Taxa de câmbio', o.conversion_rate ?? '<em style="color:var(--text-muted)">—</em>') +
+        kv('Status', `<span class="status-pill status-${o.status}">${o.status}</span>`) +
+        kv('Failure reason', o.failure_reason ? escapeHtml(o.failure_reason) : '<em style="color:var(--text-muted)">—</em>') +
+        kv('Created', o.created_at ? new Date(o.created_at).toLocaleString('pt-BR') : '') +
+        `</div>` +
+        `<div class="detail-section"><h3>Itens (${(o.items ?? []).length})</h3>` +
+        `<table class="data-table"><thead><tr><th>SKU</th><th>Qty</th><th>Unit price</th></tr></thead><tbody>${items}</tbody></table>` +
+        `</div>` +
+        rawJsonToggle(o, targetId);
+    }
+
+    function kv(label, value) {
+      return `<div class="label">${label}</div><div class="value">${value ?? ''}</div>`;
+    }
+
+    // ---------- QUEUE METRICS ----------
+    async function queueMetrics() {
+      const result = await callApi({
+        method: 'GET', path: '/queue/metrics', targetId: 'queue-response', skipDefaultRender: true,
+      });
+      if (result && result.status === 200) {
+        renderQueueMetrics(result.body, 'queue-response');
+      } else if (result) {
+        renderResponse('queue-response', result.status, result.body);
+      }
+    }
+
+    function renderQueueMetrics(payload, targetId) {
+      const target = document.getElementById(targetId);
+      const queues = payload.queues ?? [];
+      let html = `<div class="status-badge status-2xx">200</div>`;
+      for (const q of queues) {
+        const c = q.counts ?? {};
+        html +=
+          `<div class="queue-section">` +
+          `<div class="queue-name">${icon('package')} ${escapeHtml(q.name)}</div>` +
+          `<div class="counters">` +
+          counter('waiting', c.waiting) +
+          counter('active', c.active) +
+          counter('completed', c.completed) +
+          counter('failed', c.failed) +
+          counter('delayed', c.delayed) +
+          `</div></div>`;
+      }
+      html += rawJsonToggle(payload, targetId);
+      target.innerHTML = html;
+    }
+
+    function counter(name, value) {
+      return `<div class="counter ${name}"><div class="label">${name}</div><div class="value">${value ?? 0}</div></div>`;
+    }
+
+    // ---------- HEALTH ----------
+    async function health() {
+      const result = await callApi({
+        method: 'GET', path: '/health', includeAuth: false, targetId: 'health-response', skipDefaultRender: true,
+      });
+      if (result && (result.status === 200 || result.status === 503)) {
+        renderHealth(result.body, result.status, 'health-response');
+      } else if (result) {
+        renderResponse('health-response', result.status, result.body);
+      }
+    }
+
+    function renderHealth(payload, status, targetId) {
+      const target = document.getElementById(targetId);
+      const overall = payload.status ?? 'unknown';
+      const info = { ...(payload.info ?? {}), ...(payload.error ?? {}) };
+      let html =
+        `<div class="status-badge status-${status >= 200 && status < 300 ? '2xx' : '5xx'}">${status}</div>` +
+        `<div style="margin-bottom:12px;font-size:0.95rem;">Status geral: <strong style="color:${overall === 'ok' ? 'var(--success)' : 'var(--danger)'}">${overall.toUpperCase()}</strong></div>` +
+        `<div class="health-grid">`;
+      for (const [name, value] of Object.entries(info)) {
+        const isUp = value?.status === 'up';
+        html +=
+          `<div class="health-card ${isUp ? 'up' : 'down'}">` +
+          `<div class="name">${escapeHtml(name)}</div>` +
+          `<div class="value">${isUp ? icon('check', 'icon-success') + ' UP' : icon('x', 'icon-danger') + ' DOWN'}</div>` +
+          (value?.message ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">${escapeHtml(value.message)}</div>` : '') +
+          `</div>`;
+      }
+      html += `</div>` + rawJsonToggle(payload, targetId);
+      target.innerHTML = html;
+    }
+
+    // ---------- Utils ----------
+    function rawJsonToggle(payload, targetId) {
+      const id = `${targetId}-raw`;
+      return (
+        `<a class="toggle-raw" onclick="document.getElementById('${id}').style.display = document.getElementById('${id}').style.display === 'none' ? 'block' : 'none'">${icon('chevronToggle')} ver JSON cru</a>` +
+        `<div id="${id}" class="raw-json" style="display:none"><pre>${syntaxHighlight(JSON.stringify(payload, null, 2))}</pre></div>`
+      );
+    }
+
+    // ---------- EMBED HTML / TEXT PAGES ----------
+    function embedHtml(path, targetId) {
+      const target = document.getElementById(targetId);
+      target.innerHTML =
+        `<div class="embed-info">${icon('book')} Carregando ${escapeHtml(baseUrl() + path)} em iframe…</div>` +
+        `<div class="embed-wrapper"><iframe src="${baseUrl()}${path}" title="${escapeHtml(path)}"></iframe></div>`;
+    }
+
+    async function embedText(path, targetId) {
+      const target = document.getElementById(targetId);
+      target.innerHTML = `<div class="embed-info">Carregando ${escapeHtml(path)}…</div>`;
+      try {
+        const res = await fetch(`${baseUrl()}${path}`);
+        const text = await res.text();
+        target.innerHTML =
+          `<div class="embed-info">${res.status} ${path} (${text.split('\n').length} linhas)</div>` +
+          `<div class="embed-text">${escapeHtml(text)}</div>`;
+      } catch (err) {
+        target.innerHTML = `<div class="embed-warning">Falha: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function embedJson(path, targetId) {
+      const target = document.getElementById(targetId);
+      target.innerHTML = `<div class="embed-info">Carregando ${escapeHtml(path)}…</div>`;
+      try {
+        const res = await fetch(`${baseUrl()}${path}`);
+        const json = await res.json();
+        target.innerHTML =
+          `<div class="embed-info">${res.status} ${path}</div>` +
+          `<div class="embed-text">${syntaxHighlight(JSON.stringify(json, null, 2))}</div>`;
+      } catch (err) {
+        target.innerHTML = `<div class="embed-warning">Falha: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function embedBullBoard() {
+      const target = document.getElementById('embed-frame');
+      if (!adminKey()) {
+        target.innerHTML =
+          `<div class="embed-warning">${icon('alert', 'icon-warning')} Defina a Admin Key primeiro (campo no topo).</div>`;
+        return;
+      }
+      // Carrega via iframe direto com query param. A 1ª request seta o cookie
+      // `admin_key` no domínio /admin/queues, então os AJAX internos do Bull
+      // Board passam pelo cookie automaticamente — UI 100% funcional.
+      const url = `${baseUrl()}/admin/queues?admin_key=${encodeURIComponent(adminKey())}`;
+      target.innerHTML =
+        `<div class="embed-info">${icon('barChart')} Bull Board (autenticado via query param + cookie). Funciona inteiro.</div>` +
+        `<div class="embed-wrapper"><iframe src="${url}" title="Bull Board"></iframe></div>`;
+    }
+
+    // ---------- INIT ----------
+    loadScenario('valid');
+    document.querySelectorAll('#quick-links a').forEach((a) => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        let url = `${baseUrl()}${a.dataset.path}`;
+        // Pra rotas admin, injeta ?admin_key=... na URL — backend valida e seta
+        // cookie pras requisições subsequentes (AJAX do Bull Board) funcionarem.
+        if (a.dataset.admin === '1') {
+          if (!adminKey()) {
+            alert('Defina a Admin Key primeiro (campo no topo).');
+            return;
+          }
+          url += `?admin_key=${encodeURIComponent(adminKey())}`;
+        }
+        window.open(url, '_blank');
+      });
+    });
+  </script>
+
+</body>
+</html>

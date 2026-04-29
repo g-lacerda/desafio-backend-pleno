@@ -58,7 +58,11 @@ export class IdempotencyService {
     } catch (error) {
       if (!this.isUniqueViolation(error)) throw error;
 
-      const existing = await this.prisma.idempotencyKey.findUniqueOrThrow({ where: { key } });
+      // Race rara: a outra requisição que disparou o unique violation pode ainda
+      // não estar visível neste snapshot (transação concorrente). Retentamos algumas
+      // vezes com delay curto antes de propagar.
+      const existing = await this.findExistingWithRetry(key);
+      if (!existing) throw error;
 
       const shouldReuse =
         this.isExpired(existing) || existing.status === IdempotencyStatus.FAILED;
@@ -137,5 +141,18 @@ export class IdempotencyService {
 
   private isExpired(record: IdempotencyKey): boolean {
     return record.expiresAt.getTime() < Date.now();
+  }
+
+  private async findExistingWithRetry(
+    key: string,
+    attempts = 3,
+    delayMs = 20,
+  ): Promise<IdempotencyKey | null> {
+    for (let i = 0; i < attempts; i++) {
+      const found = await this.prisma.idempotencyKey.findUnique({ where: { key } });
+      if (found) return found;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+    }
+    return null;
   }
 }

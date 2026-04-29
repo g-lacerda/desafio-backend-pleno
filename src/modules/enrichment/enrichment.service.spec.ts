@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Order, OrderStatus } from '@prisma/client';
 import { OrderRepository } from '@/modules/orders/repositories/order.repository';
+import { MetricsService } from '@/shared/metrics/metrics.service';
 import { EnrichmentService } from './enrichment.service';
 import { ExchangeRateClient } from './exchange-rate.client';
 import { ExchangeRateUnavailableException } from './exceptions/exchange-rate-unavailable.exception';
@@ -9,6 +10,7 @@ describe('EnrichmentService', () => {
   let service: EnrichmentService;
   let repository: jest.Mocked<OrderRepository>;
   let client: jest.Mocked<ExchangeRateClient>;
+  let metrics: jest.Mocked<MetricsService>;
 
   const buildOrder = (overrides: Partial<Order> = {}): Order => ({
     id: 'ord-1',
@@ -39,7 +41,13 @@ describe('EnrichmentService', () => {
       getRateToBrlMicros: jest.fn(),
     } as unknown as jest.Mocked<ExchangeRateClient>;
 
-    service = new EnrichmentService(repository, client);
+    metrics = {
+      recordOrderEnriched: jest.fn(),
+      recordEnrichmentAttempt: jest.fn(),
+      recordOrderReceived: jest.fn(),
+    } as unknown as jest.Mocked<MetricsService>;
+
+    service = new EnrichmentService(repository, client, metrics);
   });
 
   it('marca como ENRICHING, busca taxa e marca como ENRICHED com total convertido correto', async () => {

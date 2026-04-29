@@ -99,10 +99,10 @@ describe('Enrichment worker (E2E)', () => {
     expect(failed.totalConvertedCents).toBeNull();
   });
 
-  it('4xx (moeda inválida) → falha imediata sem retry', async () => {
-    nock(AWESOMEAPI_HOST).persist().get('/json/last/XXX-BRL').reply(404, { message: 'not found' });
+  it('4xx (moeda válida ISO mas não suportada pelo provedor) → falha imediata sem retry', async () => {
+    nock(AWESOMEAPI_HOST).persist().get('/json/last/AFN-BRL').reply(404, { message: 'not found' });
 
-    const { id } = await submitOrder(app, buildPayload('XXX'));
+    const { id } = await submitOrder(app, buildPayload('AFN'));
 
     const failed = await poll(
       async () => {

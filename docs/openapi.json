@@ -1,0 +1,880 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/metrics": {
+      "get": {
+        "operationId": "PrometheusController_index",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Prometheus"
+        ]
+      }
+    },
+    "/users": {
+      "post": {
+        "description": "Provisiona um novo usuário. **Requer a chave admin** via `X-Admin-Key` ou `Authorization: Bearer <ADMIN_API_KEY>`. A API key do usuário é retornada **uma única vez** no response — o servidor armazena apenas o hash SHA-256.",
+        "operationId": "UsersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Admin key ausente ou inválida."
+          },
+          "409": {
+            "description": "Email já cadastrado."
+          }
+        },
+        "security": [
+          {
+            "X-Admin-Key": []
+          }
+        ],
+        "summary": "Cria um novo usuário e gera uma API key (admin)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Valida `email` + `password` (bcrypt) e gera uma nova API key, **invalidando a anterior**. Use este endpoint quando perder a chave devolvida no `POST /users`. A chave nova é exibida APENAS nesta resposta — o servidor armazena somente o hash SHA-256.",
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais inválidas."
+          }
+        },
+        "summary": "Autentica e rotaciona a API key do usuário",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The Health Check is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "info": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {},
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Health Check is not successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "info": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        },
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Liveness and readiness probe (database + redis)",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/webhooks/orders": {
+      "post": {
+        "description": "Endpoint público invocado por sistemas externos (e-commerce, marketplaces, gateways). Valida o payload, garante idempotência via tabela dedicada (replay byte-a-byte para a mesma chave + payload, 422 para hash divergente, 409 enquanto IN_PROGRESS) e persiste o pedido com status RECEIVED. O processamento é assíncrono e ocorre via fila (Fase 3).",
+        "operationId": "WebhooksController_receive",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Pedido aceito para processamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload inválido."
+          },
+          "409": {
+            "description": "Outra requisição com a mesma chave está em processamento."
+          },
+          "422": {
+            "description": "Chave de idempotência reutilizada com payload diferente."
+          },
+          "429": {
+            "description": "Limite de requisições excedido."
+          }
+        },
+        "summary": "Recebe um pedido vindo de fonte externa",
+        "tags": [
+          "Webhooks"
+        ]
+      }
+    },
+    "/orders": {
+      "get": {
+        "operationId": "OrdersController_findAll",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RECEIVED",
+                "ENRICHING",
+                "ENRICHED",
+                "FAILED_ENRICHMENT"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOrdersResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Lista pedidos com filtro opcional por status e paginação",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "operationId": "OrdersController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pedido não encontrado."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Retorna um pedido pelo ID",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/queue/metrics": {
+      "get": {
+        "operationId": "QueueController_metrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueMetricsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Métricas agregadas das filas (waiting, active, completed, failed, delayed)",
+        "tags": [
+          "Queue"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Order Orchestrator",
+    "description": "Webhook-driven order orchestrator with idempotency, async enrichment and DLQ.",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "X-API-Key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "demo@inbazz.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "Demo User"
+          },
+          "password": {
+            "type": "string",
+            "example": "p@ssword123",
+            "minLength": 8,
+            "description": "Senha (mín. 8 caracteres, máx. 72). Armazenada como bcrypt hash. Usada apenas para `POST /auth/login` rotacionar a API key se for perdida."
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "PT_BR",
+              "EN",
+              "ES"
+            ],
+            "example": "PT_BR"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "password",
+          "preferredLanguage"
+        ]
+      },
+      "CreatedUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "7e9b6a45-0e6f-4f1c-9c1d-3a4f2e8e6a47"
+          },
+          "email": {
+            "type": "string",
+            "example": "demo@inbazz.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "Demo User"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "PT_BR",
+              "EN",
+              "ES"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-04-28T20:31:42.123Z"
+          },
+          "api_key": {
+            "type": "string",
+            "example": "sk_live_abc123def456...",
+            "description": "API key gerada. **Mostrada APENAS NESTA RESPOSTA** — guarde-a com segurança, pois o servidor armazena somente o hash SHA-256."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "preferredLanguage",
+          "created_at",
+          "api_key"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "demo@inbazz.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "p@ssword123"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "7e9b6a45-0e6f-4f1c-9c1d-3a4f2e8e6a47"
+          },
+          "email": {
+            "type": "string",
+            "example": "demo@inbazz.com"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "PT_BR",
+              "EN",
+              "ES"
+            ]
+          },
+          "api_key": {
+            "type": "string",
+            "example": "sk_live_NEW_KEY_HERE...",
+            "description": "Nova API key gerada. **A chave anterior do usuário é invalidada imediatamente.** Mostrada apenas nesta resposta — guarde com segurança."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "preferredLanguage",
+          "api_key"
+        ]
+      },
+      "CustomerDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ana Silva"
+          }
+        },
+        "required": [
+          "email",
+          "name"
+        ]
+      },
+      "OrderItemDto": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "example": "ABC123"
+          },
+          "qty": {
+            "type": "number",
+            "example": 2,
+            "minimum": 1
+          },
+          "unit_price": {
+            "type": "number",
+            "example": 59.9,
+            "description": "Preço unitário em decimal (até 2 casas). É convertido para centavos internamente.",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        },
+        "required": [
+          "sku",
+          "qty",
+          "unit_price"
+        ]
+      },
+      "CreateOrderDto": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "example": "ext-123",
+            "description": "ID do pedido na fonte externa."
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerDto"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemDto"
+            }
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD",
+            "description": "Código ISO 4217 (ex.: USD, EUR, BRL, GBP). Validado contra a lista oficial."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "example": "a3c1f2c0-8b6e-4f6f-92d4-22e5e1c4cdd9",
+            "description": "Chave única por requisição lógica. A mesma chave + payload retorna a resposta original (replay)."
+          }
+        },
+        "required": [
+          "order_id",
+          "customer",
+          "items",
+          "currency",
+          "idempotency_key"
+        ]
+      },
+      "OrderItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "example": "ABC123"
+          },
+          "qty": {
+            "type": "number",
+            "example": 2
+          },
+          "unit_price": {
+            "type": "string",
+            "example": "59.90",
+            "description": "Preço unitário formatado com 2 decimais."
+          }
+        },
+        "required": [
+          "sku",
+          "qty",
+          "unit_price"
+        ]
+      },
+      "OrderResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "7e9b6a45-0e6f-4f1c-9c1d-3a4f2e8e6a47",
+            "description": "ID interno."
+          },
+          "external_order_id": {
+            "type": "string",
+            "example": "ext-123"
+          },
+          "customer": {
+            "type": "object",
+            "example": {
+              "email": "user@example.com",
+              "name": "Ana Silva"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemResponseDto"
+            }
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "total_original": {
+            "type": "string",
+            "example": "119.80"
+          },
+          "total_converted": {
+            "type": "object",
+            "example": "614.80",
+            "nullable": true,
+            "description": "Total convertido em BRL após enrichment. `null` enquanto não enriquecido."
+          },
+          "conversion_rate": {
+            "type": "object",
+            "example": "5.131234",
+            "nullable": true,
+            "description": "Taxa de câmbio aplicada (origem → BRL). `null` enquanto não enriquecido."
+          },
+          "status": {
+            "type": "string",
+            "example": "RECEIVED",
+            "enum": [
+              "RECEIVED",
+              "ENRICHING",
+              "ENRICHED",
+              "FAILED_ENRICHMENT"
+            ]
+          },
+          "failure_reason": {
+            "type": "object",
+            "example": null,
+            "nullable": true,
+            "description": "Quando `status=FAILED_ENRICHMENT`, contém a mensagem traduzida da falha (chave i18n armazenada no banco)."
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-04-28T20:31:42.123Z"
+          }
+        },
+        "required": [
+          "id",
+          "external_order_id",
+          "customer",
+          "items",
+          "currency",
+          "total_original",
+          "total_converted",
+          "conversion_rate",
+          "status",
+          "failure_reason",
+          "created_at"
+        ]
+      },
+      "PaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          },
+          "total": {
+            "type": "number",
+            "example": 142
+          },
+          "total_pages": {
+            "type": "number",
+            "example": 8
+          }
+        },
+        "required": [
+          "page",
+          "limit",
+          "total",
+          "total_pages"
+        ]
+      },
+      "ListOrdersResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderResponseDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMetaDto"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "QueueCountersDto": {
+        "type": "object",
+        "properties": {
+          "waiting": {
+            "type": "number",
+            "example": 3
+          },
+          "active": {
+            "type": "number",
+            "example": 1
+          },
+          "completed": {
+            "type": "number",
+            "example": 142
+          },
+          "failed": {
+            "type": "number",
+            "example": 5
+          },
+          "delayed": {
+            "type": "number",
+            "example": 0
+          }
+        },
+        "required": [
+          "waiting",
+          "active",
+          "completed",
+          "failed",
+          "delayed"
+        ]
+      },
+      "QueueMetricsDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "enrichment-queue"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/QueueCountersDto"
+          }
+        },
+        "required": [
+          "name",
+          "counts"
+        ]
+      },
+      "QueueMetricsResponseDto": {
+        "type": "object",
+        "properties": {
+          "queues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueMetricsDto"
+            }
+          }
+        },
+        "required": [
+          "queues"
+        ]
+      }
+    }
+  }
+}

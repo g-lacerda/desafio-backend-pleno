@@ -10,7 +10,7 @@ describe('IdempotencyService', () => {
   let prisma: {
     idempotencyKey: {
       create: jest.Mock;
-      findUniqueOrThrow: jest.Mock;
+      findUnique: jest.Mock;
       update: jest.Mock;
     };
   };
@@ -32,7 +32,7 @@ describe('IdempotencyService', () => {
     prisma = {
       idempotencyKey: {
         create: jest.fn(),
-        findUniqueOrThrow: jest.fn(),
+        findUnique: jest.fn(),
         update: jest.fn(),
       },
     };
@@ -61,7 +61,7 @@ describe('IdempotencyService', () => {
       const payload = { foo: 'bar' };
       const sameHash = service.hashPayload(payload);
       prisma.idempotencyKey.create.mockRejectedValue(uniqueViolation());
-      prisma.idempotencyKey.findUniqueOrThrow.mockResolvedValue(
+      prisma.idempotencyKey.findUnique.mockResolvedValue(
         baseRecord({ requestHash: sameHash, status: IdempotencyStatus.COMPLETED }),
       );
 
@@ -73,7 +73,7 @@ describe('IdempotencyService', () => {
 
     it('lança DuplicateIdempotencyKeyException quando hash diverge', async () => {
       prisma.idempotencyKey.create.mockRejectedValue(uniqueViolation());
-      prisma.idempotencyKey.findUniqueOrThrow.mockResolvedValue(
+      prisma.idempotencyKey.findUnique.mockResolvedValue(
         baseRecord({ requestHash: 'hash-different', status: IdempotencyStatus.COMPLETED }),
       );
 
@@ -86,7 +86,7 @@ describe('IdempotencyService', () => {
       const payload = { foo: 'bar' };
       const sameHash = service.hashPayload(payload);
       prisma.idempotencyKey.create.mockRejectedValue(uniqueViolation());
-      prisma.idempotencyKey.findUniqueOrThrow.mockResolvedValue(
+      prisma.idempotencyKey.findUnique.mockResolvedValue(
         baseRecord({ requestHash: sameHash, status: IdempotencyStatus.IN_PROGRESS }),
       );
 
@@ -99,7 +99,7 @@ describe('IdempotencyService', () => {
       const payload = { foo: 'bar' };
       const sameHash = service.hashPayload(payload);
       prisma.idempotencyKey.create.mockRejectedValue(uniqueViolation());
-      prisma.idempotencyKey.findUniqueOrThrow.mockResolvedValue(
+      prisma.idempotencyKey.findUnique.mockResolvedValue(
         baseRecord({ requestHash: sameHash, status: IdempotencyStatus.FAILED }),
       );
       prisma.idempotencyKey.update.mockResolvedValue(undefined);
@@ -118,7 +118,7 @@ describe('IdempotencyService', () => {
       const payload = { foo: 'bar' };
       const sameHash = service.hashPayload(payload);
       prisma.idempotencyKey.create.mockRejectedValue(uniqueViolation());
-      prisma.idempotencyKey.findUniqueOrThrow.mockResolvedValue(
+      prisma.idempotencyKey.findUnique.mockResolvedValue(
         baseRecord({
           requestHash: sameHash,
           status: IdempotencyStatus.COMPLETED,

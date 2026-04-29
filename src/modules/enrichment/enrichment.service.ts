@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
+import { MetricsService } from '@/shared/metrics/metrics.service';
 import { convertCents } from '@/shared/money/money.utils';
 import { OrderRepository } from '@/modules/orders/repositories/order.repository';
 import { ExchangeRateClient } from './exchange-rate.client';
@@ -11,6 +12,7 @@ export class EnrichmentService {
   constructor(
     private readonly repository: OrderRepository,
     private readonly client: ExchangeRateClient,
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -38,6 +40,8 @@ export class EnrichmentService {
 
     await this.repository.markEnriched(orderId, totalConvertedCents, rateMicros);
 
+    this.metrics.recordOrderEnriched();
+    this.metrics.recordEnrichmentAttempt('success');
     this.logger.log(
       { orderId, currency: order.currency, rateMicros, totalConvertedCents },
       'Order enriched successfully',

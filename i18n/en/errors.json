@@ -10,7 +10,16 @@
     "hashDivergent": "Idempotency key {key} has already been used with a different payload"
   },
   "order": {
-    "notFound": "Order with id {id} not found"
+    "notFound": "Order with id {id} not found",
+    "alreadyExists": "An order with external id {id} already exists"
+  },
+  "user": {
+    "emailAlreadyExists": "A user with email {email} already exists"
+  },
+  "auth": {
+    "missingApiKey": "API key is required (send via Authorization: Bearer <key> or X-API-Key header)",
+    "invalidApiKey": "Invalid API key",
+    "invalidCredentials": "Invalid email or password"
   },
   "enrichment": {
     "failed": "Failed to enrich order after {attempts} attempts",

@@ -10,7 +10,16 @@
     "hashDivergent": "La clave de idempotencia {key} ya fue utilizada con un payload diferente"
   },
   "order": {
-    "notFound": "Pedido con id {id} no encontrado"
+    "notFound": "Pedido con id {id} no encontrado",
+    "alreadyExists": "Ya existe un pedido con id externo {id}"
+  },
+  "user": {
+    "emailAlreadyExists": "Ya existe un usuario con el correo {email}"
+  },
+  "auth": {
+    "missingApiKey": "La clave de API es obligatoria (envíe vía Authorization: Bearer <clave> o cabecera X-API-Key)",
+    "invalidApiKey": "Clave de API inválida",
+    "invalidCredentials": "Correo electrónico o contraseña inválidos"
   },
   "enrichment": {
     "failed": "Error al enriquecer el pedido tras {attempts} intentos",

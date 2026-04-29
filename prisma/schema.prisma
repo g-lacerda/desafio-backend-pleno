@@ -13,6 +13,7 @@ model User {
   name              String
   preferredLanguage Language @default(EN)
   apiKeyHash        String   @unique
+  passwordHash      String
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

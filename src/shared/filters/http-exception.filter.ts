@@ -6,8 +6,16 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { Language, User } from '@prisma/client';
 import { Request, Response } from 'express';
 import { I18nContext, I18nService } from 'nestjs-i18n';
+import { REQUEST_USER_KEY } from '@/shared/auth/current-user.decorator';
+
+const LANGUAGE_DB_TO_TAG: Record<Language, string> = {
+  PT_BR: 'pt-BR',
+  EN: 'en',
+  ES: 'es',
+};
 
 interface TranslatableMessage {
   key: string;
@@ -43,7 +51,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const lang = I18nContext.current()?.lang;
+    const lang = this.resolveLang(request);
 
     const status =
       exception instanceof HttpException
@@ -154,6 +162,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   private resolveErrorName(status: number): string {
     return HttpStatus[status] ?? 'Error';
+  }
+
+  /**
+   * Resolve o idioma da resposta dando prioridade ao `preferredLanguage` do
+   * usuário autenticado (anexado pelo `ApiKeyAuthGuard`). O `I18nContext.lang`
+   * só é confiável para requisições não-autenticadas (foi setado por middleware
+   * antes do guard rodar).
+   */
+  private resolveLang(req: Request): string | undefined {
+    const user = (req as Request & { [REQUEST_USER_KEY]?: User })[REQUEST_USER_KEY];
+    if (user?.preferredLanguage) {
+      return LANGUAGE_DB_TO_TAG[user.preferredLanguage];
+    }
+    return I18nContext.current()?.lang;
   }
 
   static buildException(key: string, args?: Record<string, unknown>): TranslatableMessage {

@@ -33,4 +33,8 @@ export const envValidationSchema = Joi.object({
 
   // Prefix do BullMQ — usado em testes pra isolar filas entre suites.
   BULL_PREFIX: Joi.string().optional(),
+
+  // Admin key — protege POST /users e a UI Bull Board em /admin/queues.
+  // Mínimo de 16 caracteres pra forçar valor não-trivial.
+  ADMIN_API_KEY: Joi.string().min(16).required(),
 });
