@@ -266,7 +266,7 @@
     },
     "/webhooks/orders": {
       "post": {
-        "description": "Endpoint público invocado por sistemas externos (e-commerce, marketplaces, gateways). Valida o payload, garante idempotência via tabela dedicada (replay byte-a-byte para a mesma chave + payload, 422 para hash divergente, 409 enquanto IN_PROGRESS) e persiste o pedido com status RECEIVED. O processamento é assíncrono e ocorre via fila (Fase 3).",
+        "description": "Endpoint invocado por sistemas externos (e-commerce, marketplaces, gateways). **Requer o segredo de webhook** via `X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`. Valida o payload, garante idempotência via tabela dedicada (replay byte-a-byte para a mesma chave + payload, 422 para hash divergente, 409 enquanto IN_PROGRESS) e persiste o pedido com status RECEIVED. O processamento é assíncrono e ocorre via fila (Fase 3).",
         "operationId": "WebhooksController_receive",
         "parameters": [],
         "requestBody": {
@@ -293,6 +293,9 @@
           "400": {
             "description": "Payload inválido."
           },
+          "401": {
+            "description": "Segredo de webhook ausente ou inválido."
+          },
           "409": {
             "description": "Outra requisição com a mesma chave está em processamento."
           },
@@ -303,6 +306,11 @@
             "description": "Limite de requisições excedido."
           }
         },
+        "security": [
+          {
+            "X-Webhook-Secret": []
+          }
+        ],
         "summary": "Recebe um pedido vindo de fonte externa",
         "tags": [
           "Webhooks"

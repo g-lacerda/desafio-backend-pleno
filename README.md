@@ -1,188 +1,72 @@
 # Orquestrador de Pedidos
 
-API em NestJS para recebimento, validação e enriquecimento assíncrono de pedidos vindos de fontes externas (e-commerce, marketplaces, gateways de pagamento). Implementação do desafio backend pleno da [Inbazz](https://inbazz.com).
+API em NestJS para recebimento, validação e enriquecimento assíncrono de pedidos vindos de fontes externas (e-commerce, marketplaces, gateways). Implementação do desafio backend pleno da [Inbazz](https://inbazz.com).
 
-> Especificação original do desafio em [DESAFIO.md](DESAFIO.md).
+> 📚 Este README cobre o essencial pra rodar e usar a API. **Detalhamento técnico (arquitetura, decisões, auth, i18n, testes) está em [docs/](docs/)** — veja a [seção Documentação adicional](#documentação-adicional) abaixo pra navegar entre os tópicos.
+
+> Especificação original em [DESAFIO.md](DESAFIO.md).
+
+## Sumário
+
+- [Visão geral](#visão-geral)
+- [Stack](#stack)
+- [Como rodar](#como-rodar)
+- [Endpoints](#endpoints)
+- [Exemplo de uso](#exemplo-de-uso)
+- [Testando via Postman / Insomnia / Bruno](#testando-via-postman--insomnia--bruno)
+- [Documentação adicional](#documentação-adicional)
+- [Sobre o candidato](#sobre-o-candidato)
 
 ---
 
-## Sobre o projeto
+## Visão geral
 
-O serviço é um ponto de entrada confiável para pedidos externos. Resolve quatro problemas clássicos de integração:
+Ponto de entrada confiável para pedidos externos. Resolve quatro problemas clássicos de integração:
 
-1. **Acoplamento temporal**, webhook responde rápido (`202 Accepted`); processamento ocorre em background.
-2. **Idempotência**, o mesmo `idempotency_key` recebido N vezes tem efeito de uma única vez (replay byte-a-byte da resposta).
-3. **Falhas em cascata**, se a API externa de enriquecimento falha, retry com backoff exponencial e Dead Letter Queue após esgotamento.
-4. **Observabilidade operacional**, status persistido em banco, métricas Prometheus, UI de inspeção de filas, health check.
+1. **Acoplamento temporal** — webhook responde em `202 Accepted`, processamento ocorre em background.
+2. **Idempotência** — mesma `idempotency_key` recebida N vezes tem efeito único (replay byte-a-byte).
+3. **Falhas em cascata** — retry com backoff exponencial e Dead Letter Queue após esgotamento.
+4. **Observabilidade** — status persistido, métricas Prometheus, UI de inspeção de filas, health check.
 
 ## Stack
 
-| Camada | Tecnologia |
-|---|---|
-| Framework | NestJS 11 |
-| Linguagem | TypeScript 5 |
-| Banco | PostgreSQL 16 (via Prisma 6) |
-| Fila | BullMQ 5 + Redis 7 (`@nestjs/bullmq`) |
-| HTTP client | `@nestjs/axios` (consumo da AwesomeAPI para câmbio) |
-| Validação | `class-validator` + `class-transformer` |
-| Documentação | Swagger (`@nestjs/swagger`) em `/docs` |
-| Logs | Pino estruturado (`nestjs-pino`) |
-| i18n | `nestjs-i18n` (pt-BR, en, es) |
-| Auth | 3 níveis: user API key per usuário (`Bearer`/`X-API-Key`, hash SHA-256), admin key (`X-Admin-Key`), webhook secret (`X-Webhook-Secret`) |
-| Health check | `@nestjs/terminus` em `/health` |
-| Rate limiting | `@nestjs/throttler` |
-| Métricas | Prometheus (`@willsoto/nestjs-prometheus`) em `/metrics` |
-| Inspeção de fila | Bull Board em `/admin/queues` |
-| Testes | Jest + Supertest + Testcontainers + nock |
-| Disciplina | Conventional Commits + commitlint + husky |
-| Infra local | Docker Compose (Postgres + Redis) |
-
-## Roadmap
-
-- [x] **Fase 1**, Fundação e infraestrutura.
-- [x] **Fase 2**, Recebimento do pedido (webhook, idempotência, throttler).
-- [x] **Fase 3**, Processamento assíncrono (worker, retry, DLQ, AwesomeAPI).
-- [x] **Fase 4**, Usuários, autenticação, consulta e administração.
-- [x] **Fase 5**, Polimento, scripts de seed, coleções Postman, README final.
+NestJS 11 + TypeScript 5 · PostgreSQL 16 (Prisma 6) · BullMQ 5 + Redis 7 · `nestjs-i18n` (pt-BR/en/es) · Swagger · Prometheus · Bull Board · Jest + Testcontainers + nock · Docker Compose.
 
 ---
 
-## Como executar
+## Como rodar
 
-### Pré-requisitos
+**Pré-requisitos:** Docker + Docker Compose + Git. Nada mais.
 
-Mínimo necessário (basta para a **Opção A — Docker**):
-
-| Ferramenta | Versão | Como instalar |
-|---|---|---|
-| **Docker** + **Docker Compose** | recente | Linux: [docs.docker.com/engine/install](https://docs.docker.com/engine/install/) (Engine + plugin Compose), macOS/Windows: [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
-| **Git** | qualquer | Linux: `sudo apt install git` / `sudo dnf install git`, macOS: `brew install git` (ou Xcode CLT), Windows: [git-scm.com](https://git-scm.com/download/win) |
-
-> Para **Opção B — Local** (desenvolvimento com hot reload) é necessário também **Node.js 20+** (instale via [nvm](https://github.com/nvm-sh/nvm), [nodejs.org](https://nodejs.org/) ou [nvm-windows](https://github.com/coreybutler/nvm-windows)).
-
-<details>
-<summary>Comandos copy-paste por sistema</summary>
-
-**Ubuntu / Debian:**
 ```bash
-sudo apt update && sudo apt install -y git ca-certificates curl
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER && newgrp docker
-```
-
-**macOS (com [Homebrew](https://brew.sh)):**
-```bash
-brew install git
-brew install --cask docker        # Docker Desktop
-```
-
-**Windows (com [Chocolatey](https://chocolatey.org/install)):**
-```powershell
-choco install -y git docker-desktop
-```
-
-Verifique tudo:
-```bash
-docker -v && docker compose version && git --version
-```
-
-</details>
-
-Escolha **uma** das duas opções abaixo. Use a **Opção A (Docker)** se quer apenas avaliar/testar, ela é mais simples e não exige Node instalado. Use a **Opção B (Local)** apenas se for modificar o código com hot reload.
-
----
-
-### Opção A, Docker (recomendado para avaliação)
-
-> ✅ Não precisa instalar Node, npm, Prisma CLI nem rodar migrations manualmente. O `docker compose up` sobe Postgres + Redis + Backend + UI; o container do backend roda `prisma migrate deploy` automaticamente no startup.
-
-**1. Clone e configure:**
-```bash
+# 1. Clone e configure
 git clone https://github.com/g-lacerda/desafio-backend-pleno.git
 cd desafio-backend-pleno
 cp .env.example .env
-```
 
-**2. Suba tudo:**
-```bash
+# 2. Suba tudo (Postgres + Redis + Backend + UI)
 docker compose up -d --build
-```
 
-**3. Provisione 3 usuários demo (gera as API keys):**
-```bash
+# 3. Provisione 3 usuários demo (gera as API keys)
 docker compose exec app npm run seed:users
 ```
 
-Imprime as 3 API keys (`demo-pt@inbazz.com`, `demo-en@inbazz.com`, `demo-es@inbazz.com`). Senha de todos: `demo-pass-1234`. Cole as chaves nas variáveis `apiKeyPtBR`/`EN`/`ES` do Postman ou no campo "API Key" da UI.
-
-**4. (Opcional) Dispare cenários de demonstração:**
-```bash
-docker compose exec app npm run seed:webhook                          # 1 pedido válido
-docker compose exec app npm run seed:webhook -- --scenario=duplicate  # replay (mesma chave 2x)
-docker compose exec app npm run seed:webhook -- --scenario=hash       # hash divergente (422)
-docker compose exec app npm run seed:webhook -- --scenario=invalid    # payload inválido (400)
-docker compose exec app npm run seed:webhook:load                     # 50 pedidos paralelos
-docker compose exec app npm run seed:webhook:dlq                      # moeda AFN → vai pra DLQ
-docker compose exec app npm run seed:webhook:all                      # roda todos os cenários
-```
+O passo 3 imprime 3 API keys (uma por idioma: pt-BR, en, es). Senha de todos: `demo-pass-1234`. Cole as chaves nas variáveis `apiKeyPtBR`/`EN`/`ES` do Postman ou no campo "User API Key" da UI.
 
 **Acesse:**
 
 | Serviço | URL |
 |---|---|
-| UI Console | http://localhost:8080 |
+| **UI Console** | http://localhost:8080 |
 | API | http://localhost:3000 |
 | Swagger | http://localhost:3000/docs |
-| Bull Board | http://localhost:3000/admin/queues?admin_key=change-me-to-a-strong-random-secret |
+| Bull Board | http://localhost:3000/admin/queues?admin_key=&lt;ADMIN_API_KEY&gt; |
 | Health | http://localhost:3000/health |
-| Métricas Prometheus | http://localhost:3000/metrics |
+| Métricas | http://localhost:3000/metrics |
 
-**Para parar tudo:**
-```bash
-docker compose down
-```
+**Para parar tudo:** `docker compose down`.
 
----
-
-### Opção B, Local (para desenvolvimento com hot reload)
-
-Use esta opção apenas se for modificar o código e quiser `nest start --watch`. Requer Node 20+ instalado.
-
-**1. Clone, configure e instale dependências:**
-```bash
-git clone https://github.com/g-lacerda/desafio-backend-pleno.git
-cd desafio-backend-pleno
-cp .env.example .env
-npm install
-```
-
-**2. Suba só a infra (Postgres + Redis):**
-```bash
-docker compose up -d postgres redis
-```
-
-**3. Aplique as migrations:**
-```bash
-npm run prisma:migrate
-```
-
-**4. Suba o backend em watch mode:**
-```bash
-npm run start:dev
-```
-
-**5. (Em outro terminal) Suba a UI:**
-```bash
-npx serve UI -l 8080
-```
-
-**6. (Em outro terminal) Provisione usuários e dispare cenários:**
-```bash
-npm run seed:users
-npm run seed:webhook        # ou outras variações
-```
-
-**Acesse:** as mesmas URLs da Opção A (UI em :8080, API em :3000).
+> Quer modificar o código com hot reload? Veja [docs/setup-local.md](docs/setup-local.md).
 
 ---
 
@@ -190,250 +74,81 @@ npm run seed:webhook        # ou outras variações
 
 | Método | Endpoint | Auth | Descrição |
 |---|---|---|---|
-| `POST` | `/users` | **Admin Key** (`X-Admin-Key`) | Cria usuário (com `password` bcrypt) e devolve `api_key` uma única vez. |
-| `POST` | `/auth/login` | público | Autentica `email` + `password` e **rotaciona** a API key (use se perdeu a chave). |
-| `POST` | `/webhooks/orders` | **Webhook Secret** (`X-Webhook-Secret`) + rate-limited | Recebe pedido, valida, garante idempotência e enfileira para enrichment. |
-| `GET` | `/orders` | User API key (`Authorization: Bearer` ou `X-API-Key`) | Lista pedidos com filtro `status` e paginação. |
-| `GET` | `/orders/:id` | User API key | Detalhes de um pedido. |
-| `GET` | `/queue/metrics` | User API key | Contadores agregados das filas (`enrichment-queue`, `enrichment-dlq`). |
-| `GET` | `/admin/queues` | **Admin Key** (`X-Admin-Key`) | UI HTML do Bull Board para inspecionar/retentar/descartar jobs. |
+| `POST` | `/users` | Admin Key | Cria usuário e devolve `api_key` (uma única vez). |
+| `POST` | `/auth/login` | público | Autentica `email`+`password` e **rotaciona** a API key. |
+| `POST` | `/webhooks/orders` | Webhook Secret + rate-limited | Recebe pedido e enfileira para enrichment. |
+| `GET` | `/orders` | User API Key | Lista pedidos com filtro `status` e paginação. |
+| `GET` | `/orders/:id` | User API Key | Detalhes de um pedido. |
+| `GET` | `/queue/metrics` | User API Key | Contadores das filas (`enrichment-queue`, `enrichment-dlq`). |
+| `GET` | `/admin/queues` | Admin Key | Bull Board (UI HTML). |
 | `GET` | `/health` | público | Health check (Postgres + Redis). |
-| `GET` | `/metrics` | público | Métricas Prometheus (default + customizadas). |
+| `GET` | `/metrics` | público | Métricas Prometheus. |
 | `GET` | `/docs` | público | Swagger UI. |
-| `GET` | `/docs-json` | público | Spec OpenAPI 3.0 cru. |
 
-### Três níveis de autenticação
-
-- **User API key** (`sk_live_...`), gerada por `POST /users`, identifica um usuário individual. Usada nos endpoints de consulta (`/orders`, `/queue/metrics`).
-- **Admin key**, segredo único compartilhado, vem da env `ADMIN_API_KEY` (mín 16 chars). Usada pra operações administrativas: provisionar usuários (`POST /users`) e acessar Bull Board (`/admin/queues`).
-- **Webhook secret**, segredo compartilhado com sistemas externos que invocam `POST /webhooks/orders`, vem da env `WEBHOOK_SECRET` (mín 16 chars). Enviado em `X-Webhook-Secret` ou `Authorization: Bearer`.
-
-Em produção real, todos os 3 ficariam atrás de um secret manager (AWS Secrets, Vault, etc.). Os dois últimos são per-service (compartilhados), enquanto a user API key é per-user.
+> Detalhes dos 3 níveis de autenticação em [docs/auth.md](docs/auth.md).
 
 ---
 
-## Fluxo de um pedido
+## Exemplo de uso
 
-```
-Cliente externo (POST /webhooks/orders)
-     │
-     ▼
-WebhookController
-   ├─ ThrottlerGuard           (limite por IP)
-   ├─ ValidationPipe (DTO)
-   └─ IdempotencyInterceptor
-         ├─ INSERT idempotency_keys (IN_PROGRESS)
-         ├─ Conflito + mesmo hash + COMPLETED  → replay byte-a-byte
-         ├─ Conflito + hash divergente         → 422
-         ├─ Conflito + IN_PROGRESS             → 409
-         └─ Caso contrário ↓
-              OrdersService.receive()
-                ├─ Persiste Order (RECEIVED, totals em cents)
-                └─ Enfileira job no BullMQ (enrichment-queue)
-              ◄ retorna 202 Accepted
-
-EnrichmentProcessor (worker BullMQ)
-   ├─ status: ENRICHING
-   ├─ ExchangeRateClient.getRateToBrlMicros(currency)
-   ├─ totalConvertedCents = convertCents(originalCents, rateMicros)   (BigInt)
-   ├─ status: ENRICHED
-   └─ Em caso de falha:
-        ├─ 5xx / timeout         → retry exponencial (até N tentativas)
-        ├─ 4xx / moeda inválida  → UnrecoverableError (sem retry)
-        └─ Esgotou tentativas    → status FAILED_ENRICHMENT + job na DLQ
-```
-
----
-
-## Decisões técnicas
-
-### Valores monetários como inteiros (`_cents` / `_micros`)
-
-Toda quantia monetária é armazenada e operada como **inteiro na menor unidade** (centavos). Taxas de câmbio em micro-unidades (× 10⁶). Sem `Decimal`/`float`/`decimal.js` em runtime.
-
-Por quê: elimina ambiguidade de ponto flutuante (`0.1 + 0.2 ≠ 0.3` em IEEE 754), serialização JSON é segura, aritmética é exata e rápida. Convenção universal (Stripe, PayPal, Square). Conversão usa `BigInt` na multiplicação intermediária para evitar overflow em valores grandes. Detalhes em `src/shared/money/money.utils.ts`.
-
-### Idempotência via tabela dedicada (não UNIQUE constraint)
-
-Implementação no padrão Stripe:
-
-- Tabela `idempotency_keys` com hash SHA-256 do payload, status (`IN_PROGRESS`/`COMPLETED`/`FAILED`), `responseStatus`/`responseBody` cacheados, `expiresAt`.
-- Replay devolve **byte-a-byte** a resposta original (não apenas "já existe").
-- Detecção de **reuso indevido** (mesma chave + payload diferente) → 422.
-- Estado `FAILED` é tratado como expirado (cliente pode retentar).
-
-### API key per user (modelo machine-to-machine) com login para recuperação
-
-Padrão de mercado (Stripe, OpenAI, Anthropic): cada usuário tem uma API key permanente, sem JWT/sessão/refresh.
-
-- `crypto.randomBytes(32).toString('base64url')` → 256 bits de entropia.
-- Banco guarda só `SHA-256(key)` indexado (lookup O(1) sem expor a chave).
-- Plain text retornado **uma única vez** na criação do usuário.
-- Sem expiração natural, a chave dura até ser rotacionada.
-
-**Recuperação se perder a chave:** `POST /auth/login` com email + senha (bcrypt) gera **nova API key** e invalida a anterior. A senha é informada na criação do usuário e armazenada como hash bcrypt. Por design, não diferenciamos "email não existe" de "senha incorreta" no erro 401 (mensagem genérica `errors.auth.invalidCredentials` para evitar enumeração).
-
-### i18n com cascata de resolução
-
-Idioma da resposta resolvido na ordem:
-
-1. `preferredLanguage` do usuário autenticado (lido do `req.user` no `HttpExceptionFilter`).
-2. Header `Accept-Language` (resolver padrão do `nestjs-i18n`).
-3. Default global (`DEFAULT_LANGUAGE` env, fallback `en`).
-
-Mensagens de exceções de negócio são armazenadas como **chaves i18n** (ex.: `errors.order.notFound`); a tradução acontece apenas na borda HTTP. `Order.failureReason` persiste a chave, não a mensagem traduzida.
-
-### Arquitetura modular
-
-- Cada módulo segue `controller → service → repository → mapper → entity`.
-- Anti-corruption layer entre DTOs (decimal/snake_case) e domínio (cents/camelCase).
-- Sem CQRS / Event Sourcing / Hexagonal completa, over-engineering pro escopo.
-
-### Worker BullMQ com retry/DLQ tipado
-
-- Erros transientes (5xx, timeout) → retry com backoff exponencial.
-- Erros permanentes (4xx, moeda inválida) → `UnrecoverableError` BullMQ → DLQ imediato.
-- `@OnWorkerEvent('failed')` marca `FAILED_ENRICHMENT` quando esgota tentativas.
-- DLQ é uma fila separada (`enrichment-dlq`) sem worker, apenas armazena para inspeção.
-
----
-
-## Internacionalização
-
-A API responde em 3 idiomas: **pt-BR**, **en**, **es**. A resolução é em cascata (ver "Decisões técnicas" acima).
+Fluxo completo: enviar um pedido via webhook e consultá-lo já enriquecido.
 
 ```bash
-# Sem auth: usa Accept-Language
-curl -H "Accept-Language: pt-BR" http://localhost:3000/rota-inexistente
-# {"message":"Recurso não encontrado", ...}
+# Variáveis (do .env após cp .env.example .env)
+WEBHOOK_SECRET="local-dev-webhook-secret-do-not-use-in-prod"
+USER_KEY="<copie do output de `npm run seed:users`>"
 
-# Com auth: usa preferredLanguage do usuário
-curl -H "Authorization: Bearer sk_live_..." http://localhost:3000/orders/inexistente
-# (em pt-BR/en/es conforme o usuário)
+# 1. Envia o pedido (responde 202 imediatamente)
+curl -X POST http://localhost:3000/webhooks/orders \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+  -d '{
+    "order_id": "ext-demo-1",
+    "customer": { "email": "ana@example.com", "name": "Ana Silva" },
+    "items": [{ "sku": "ABC123", "qty": 2, "unit_price": 59.90 }],
+    "currency": "USD",
+    "idempotency_key": "demo-key-1"
+  }'
+
+# 2. Aguarda ~1s (worker enriquece USD → BRL via AwesomeAPI) e consulta
+sleep 1
+curl http://localhost:3000/orders \
+  -H "Authorization: Bearer $USER_KEY"
+# Retorna o pedido com status: ENRICHED, total_converted preenchido em BRL,
+# conversion_rate aplicada e mensagens de erro/idioma conforme o user.
 ```
 
 ---
 
-## Testes
+## Testando via Postman / Insomnia / Bruno
 
-```bash
-npm test                # unit tests
-npm run test:cov        # cobertura (alvo: ≥ 85%)
-npm run test:e2e        # E2E com Testcontainers (requer Docker rodando)
-```
+Importe diretamente no seu cliente HTTP favorito — arquivos prontos em [`collections/`](collections):
 
-**Cobertura atual:** ~95% statements / ~86% branches.
+| Arquivo | Para |
+|---|---|
+| [`collections/postman_collection.json`](collections/postman_collection.json) | Postman (coleção curada com 7 cenários nomeados, scripts pre-request e variáveis prontas) |
+| [`collections/openapi.json`](collections/openapi.json) | Insomnia, Bruno, Hoppscotch, ou qualquer ferramenta que entenda OpenAPI 3.0 |
 
-**E2E:** sobe Postgres + Redis efêmeros via [Testcontainers](https://testcontainers.com/), aplica as migrations e roda os fluxos completos. Cada test file usa um `BULL_PREFIX` único pra isolar filas, pode rodar em paralelo sem conflito. AwesomeAPI mockada com [`nock`](https://github.com/nock/nock).
-
-**Cenários cobertos:**
-
-- Webhook: payload válido, replay, hash divergente, validação (em 3 idiomas), throttler.
-- Worker: golden path, retry 503/503/200, falha total → DLQ, 4xx sem retry.
-- Auth: API key inválida/ausente/válida, Bearer + X-API-Key, rotas públicas.
-- Consulta: paginação, filtro por status, 404 traduzido conforme idioma do usuário.
-- Métricas: shape correto das filas principal e DLQ.
+> Guia detalhado de import + variáveis a preencher em [docs/clientes-http.md](docs/clientes-http.md).
 
 ---
 
 ## Documentação adicional
 
-- `/docs`, Swagger UI interativa.
-- [docs/openapi.json](docs/openapi.json), spec OpenAPI 3.0 versionado (regenere com `npm run docs:export`).
-- [docs/postman_collection.json](docs/postman_collection.json), coleção Postman curada com todos os cenários e variáveis para 3 API keys (uma por idioma).
-- [DESAFIO.md](DESAFIO.md), especificação original do desafio.
-
-### Importar no Postman
-
-1. Postman → **Import** → arrasta `docs/postman_collection.json`.
-2. Na coleção importada, abra **Variables** e preencha:
-   - `adminKey` ← valor da env `ADMIN_API_KEY` (necessária para `POST /users` e Bull Board).
-   - `webhookSecret` ← valor da env `WEBHOOK_SECRET` (necessária para `POST /webhooks/orders`).
-3. Rode `npm run seed:users` (ou `docker compose exec app npm run seed:users` se estiver no Docker).
-4. Cole as 3 API keys impressas nas variáveis `apiKeyPtBR`, `apiKeyEN`, `apiKeyES` da coleção.
-5. Use os endpoints. As mensagens de erro virão no idioma do usuário escolhido.
-
-### Importar OpenAPI em outras ferramentas
-
-`docs/openapi.json` é importável em Insomnia, Hoppscotch, Bruno, ou qualquer ferramenta que entenda OpenAPI 3.0.
-
----
-
-## Variáveis de ambiente
-
-Todas validadas via Joi schema em `src/shared/config/env.validation.ts`. Ver `.env.example` para a lista completa com defaults.
-
-| Categoria | Vars |
-|---|---|
-| App | `NODE_ENV`, `PORT` |
-| Postgres | `DATABASE_URL`, `POSTGRES_USER/PASSWORD/DB/PORT` |
-| Redis | `REDIS_HOST`, `REDIS_PORT` |
-| i18n | `DEFAULT_LANGUAGE` |
-| Throttler | `WEBHOOK_THROTTLE_TTL_SECONDS`, `WEBHOOK_THROTTLE_LIMIT` |
-| Idempotência | `IDEMPOTENCY_TTL_HOURS` |
-| AwesomeAPI | `AWESOMEAPI_BASE_URL`, `AWESOMEAPI_TIMEOUT_MS`, `AWESOMEAPI_TOKEN` (opcional) |
-| Worker | `ENRICHMENT_MAX_ATTEMPTS`, `ENRICHMENT_BACKOFF_BASE_MS` |
-| Auth admin | `ADMIN_API_KEY` (mín 16 chars, obrigatória) |
-| Webhook | `WEBHOOK_SECRET` (mín 16 chars, obrigatória) — segredo compartilhado para `POST /webhooks/orders` |
-
----
-
-## Trade-offs assumidos
-
-- **Validation pipes com Accept-Language em vez de user.preferredLanguage**, pipes rodam após guards mas o `I18nContext` foi setado por middleware antes do guard. Erros de validação em rotas autenticadas usam o `Accept-Language`, não a preferência do usuário. Mensagens de exceções de negócio (404, 422, etc.) usam a preferência do usuário corretamente via `HttpExceptionFilter`.
-
----
-
-## Estrutura do projeto
-
-```
-src/
-├── main.ts                          Bootstrap (NestFactory + setupApp)
-├── app.module.ts                    Composição raiz dos módulos
-├── app.setup.ts                     setupApp() e setupSwagger() reutilizáveis
-├── modules/
-│   ├── admin/                       Bull Board mount
-│   ├── enrichment/                  Worker, AwesomeAPI client, exceptions
-│   ├── health/                      Terminus + Prisma/Redis indicators
-│   ├── orders/                      Webhook + GETs + DTOs + mapper + repository
-│   ├── queue/                       Métricas agregadas das filas
-│   └── users/                       POST /users + auth lookup
-└── shared/
-    ├── auth/                        ApiKeyGuard + decorators + utils
-    ├── config/                      env.validation (Joi)
-    ├── database/                    PrismaModule + PrismaService
-    ├── filters/                     HttpExceptionFilter (i18n-aware)
-    ├── i18n/                        UserLanguageResolver
-    ├── idempotency/                 Service + Interceptor + exceptions
-    ├── logger/                      Pino config
-    ├── metrics/                     Prometheus counters
-    ├── money/                       toCents/fromCents/convertCents (BigInt)
-    ├── not-found/                   Catch-all 404 controller
-    └── queue/                       Constants (queue names)
-
-i18n/
-├── en/{validation,errors,messages}.json
-├── pt-BR/{validation,errors,messages}.json
-└── es/{validation,errors,messages}.json
-
-prisma/
-└── schema.prisma                    User, Order, IdempotencyKey
-
-scripts/
-├── seed-users.ts                    Cria 3 usuários demo
-├── seed-webhook.ts                  Dispara cenários de webhook
-└── export-openapi.ts                Gera docs/openapi.json
-
-test/
-├── e2e/                             Testes end-to-end com Testcontainers
-└── helpers/                         Bootstrap de app, poll de jobs
-```
+> **[Arquitetura](docs/arquitetura.md)** — fluxo do pedido, módulos e estrutura de pastas.  
+> **[Decisões técnicas](docs/decisoes-tecnicas.md)** — money cents, idempotência, worker, trade-offs.  
+> **[Autenticação](docs/auth.md)** — 3 níveis detalhados (user / admin / webhook secret).  
+> **[Internacionalização](docs/i18n.md)** — cascata de resolução pt-BR / en / es e onde a tradução acontece.  
+> **[Testes](docs/testes.md)** — estratégia unit + E2E, cobertura e cenários cobertos.  
+> **[Clientes HTTP](docs/clientes-http.md)** — guia de import em Postman, Insomnia, Bruno e Hoppscotch.  
+> **[Variáveis de ambiente](docs/variaveis-de-ambiente.md)** — tabela de envs (todas validadas via Joi).  
+> **[Setup local](docs/setup-local.md)** — hot reload com Node 20+ pra contributors.
 
 ---
 
 ## Sobre o candidato
 
-**Guilherme Lacerda**, desenvolvedor backend disponível para a vaga de Backend Pleno na Inbazz.
+**Guilherme Lacerda** — desenvolvedor backend disponível para a vaga de Backend Pleno na Inbazz.
 
 | Campo | Dados |
 |---|---|

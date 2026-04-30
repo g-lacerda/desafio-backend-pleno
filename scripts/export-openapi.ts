@@ -1,6 +1,7 @@
 /**
- * Exporta o spec OpenAPI para `docs/openapi.json` sem subir um servidor HTTP.
- * Útil para versionar o spec gerado automaticamente do Swagger no repositório.
+ * Exporta o spec OpenAPI para `collections/openapi.json` sem subir um servidor HTTP.
+ * Útil para versionar o spec gerado automaticamente do Swagger no repositório
+ * e pra importar em clientes HTTP (Insomnia, Bruno, Hoppscotch, etc.).
  *
  * Uso: `npm run docs:export`
  */
@@ -34,7 +35,7 @@ async function main(): Promise<void> {
 
   const document = SwaggerModule.createDocument(app, config);
 
-  const outDir = join(process.cwd(), 'docs');
+  const outDir = join(process.cwd(), 'collections');
   mkdirSync(outDir, { recursive: true });
   const outFile = join(outDir, 'openapi.json');
   writeFileSync(outFile, JSON.stringify(document, null, 2));
