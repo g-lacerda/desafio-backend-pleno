@@ -7,7 +7,9 @@ import {
   IsNotEmpty,
   IsNotIn,
   IsObject,
+  IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -68,4 +70,18 @@ export class CreateOrderDto {
   @IsNotEmpty({ message: i18n('validation.isNotEmpty') })
   @MaxLength(255, { message: i18n('validation.maxLength') })
   idempotency_key!: string;
+
+  @ApiProperty({
+    example: 'fbc7e5b2-5e7e-4e8e-9c5d-7c0a8d2b3e4f',
+    description:
+      'Opcional. UUID de um usuário existente. Quando informado, o pedido fica visível **apenas** ' +
+      'para esse usuário em GET /orders. Quando ausente, o pedido é **global** (todos os usuários ' +
+      'autenticados veem). Use isso pra rotular pedidos por marketplace/tenant; deixe em branco ' +
+      'pra integrações públicas.',
+    required: false,
+  })
+  @Expose({ name: 'user_id' })
+  @IsOptional()
+  @IsUUID('4', { message: i18n('validation.isUuid') })
+  user_id?: string;
 }

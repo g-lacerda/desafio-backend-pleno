@@ -9,7 +9,21 @@ export interface CreateOrderData {
   items: Prisma.InputJsonValue;
   currency: string;
   totalOriginalCents: number;
+  /**
+   * Opcional. Quando informado, o pedido fica visível apenas pra esse user em
+   * GET /orders. Quando nulo, o pedido é global (visível pra qualquer user).
+   */
+  userId?: string | null;
 }
+
+/**
+ * Filtro de visibilidade aplicado a queries autenticadas: o usuário corrente
+ * vê os pedidos dele (`userId = currentUserId`) **mais** os pedidos globais
+ * (`userId IS NULL`). Pedidos de outros users não aparecem.
+ */
+export const visibilityFilter = (currentUserId: string): Prisma.OrderWhereInput => ({
+  OR: [{ userId: null }, { userId: currentUserId }],
+});
 
 @Injectable()
 export class OrderRepository {
@@ -19,8 +33,22 @@ export class OrderRepository {
     return this.prisma.order.create({ data });
   }
 
+  /**
+   * Lookup unfiltered. Usado pelo worker de enrichment, que precisa atualizar
+   * qualquer pedido (incluindo de outros tenants) sem se preocupar com auth.
+   */
   findById(id: string): Promise<Order | null> {
     return this.prisma.order.findUnique({ where: { id } });
+  }
+
+  /**
+   * Lookup com filtro de visibilidade — só retorna se o pedido for do user
+   * corrente OU global. Usado pelo controller pra GET /orders/:id.
+   */
+  findVisibleById(id: string, currentUserId: string): Promise<Order | null> {
+    return this.prisma.order.findFirst({
+      where: { id, ...visibilityFilter(currentUserId) },
+    });
   }
 
   findByExternalId(externalOrderId: string): Promise<Order | null> {

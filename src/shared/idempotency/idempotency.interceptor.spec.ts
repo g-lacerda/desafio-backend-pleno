@@ -1,6 +1,6 @@
 import { CallHandler, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { firstValueFrom, of, throwError } from 'rxjs';
+import { firstValueFrom, lastValueFrom, of, throwError } from 'rxjs';
 import { DuplicateIdempotencyKeyException } from './exceptions/duplicate-idempotency-key.exception';
 import { IDEMPOTENCY_KEY_FIELD } from './idempotency.constants';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
@@ -9,7 +9,12 @@ import { IdempotencyService } from './idempotency.service';
 describe('IdempotencyInterceptor', () => {
   let interceptor: IdempotencyInterceptor;
   let service: jest.Mocked<IdempotencyService>;
-  let res: { statusCode: number; status: jest.Mock };
+  let res: {
+    statusCode: number;
+    status: jest.Mock;
+    setHeader: jest.Mock;
+    send: jest.Mock;
+  };
 
   const buildContext = (body: unknown): ExecutionContext => {
     const req = { body };
@@ -29,7 +34,12 @@ describe('IdempotencyInterceptor', () => {
       hashPayload: jest.fn(),
     } as unknown as jest.Mocked<IdempotencyService>;
 
-    res = { statusCode: 202, status: jest.fn().mockReturnThis() };
+    res = {
+      statusCode: 202,
+      status: jest.fn().mockReturnThis(),
+      setHeader: jest.fn(),
+      send: jest.fn(),
+    };
     interceptor = new IdempotencyInterceptor(service, new Reflector());
   });
 
@@ -56,24 +66,30 @@ describe('IdempotencyInterceptor', () => {
     await Promise.resolve();
     expect(service.complete).toHaveBeenCalledWith(
       'k-1',
-      { status: 202, body: { id: 'ord-99', total: '10.00' } },
+      { status: 202, body: '{"id":"ord-99","total":"10.00"}' },
       'ord-99',
     );
   });
 
-  it('replay: devolve resposta cacheada e ajusta status code', async () => {
+  it('replay: escreve a string cacheada direto no res e completa observable vazio', async () => {
+    const cachedBody = '{"id":"ord-cached","status":"RECEIVED"}';
     service.register.mockResolvedValue({
       isFirst: false,
-      cached: { status: 202, body: { id: 'ord-cached' } },
+      cached: { status: 202, body: cachedBody },
     });
     const ctx = buildContext({ [IDEMPOTENCY_KEY_FIELD]: 'k-1', foo: 'bar' });
     const handler: CallHandler = { handle: jest.fn().mockReturnValue(of('not-called')) };
 
-    const result = await firstValueFrom(interceptor.intercept(ctx, handler));
+    const result = await lastValueFrom(interceptor.intercept(ctx, handler), {
+      defaultValue: '__EMPTY__',
+    });
 
-    expect(result).toEqual({ id: 'ord-cached' });
+    // Observable é EMPTY no caso de replay — defaultValue confirma que nada foi emitido.
+    expect(result).toBe('__EMPTY__');
     expect(handler.handle).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json; charset=utf-8');
+    expect(res.send).toHaveBeenCalledWith(cachedBody);
   });
 
   it('propaga DuplicateIdempotencyKeyException do register', async () => {

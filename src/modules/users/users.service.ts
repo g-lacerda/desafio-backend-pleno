@@ -66,4 +66,8 @@ export class UsersService {
   findByApiKey(apiKey: string): Promise<User | null> {
     return this.repository.findByApiKeyHash(hashApiKey(apiKey));
   }
+
+  findById(id: string): Promise<User | null> {
+    return this.repository.findById(id);
+  }
 }

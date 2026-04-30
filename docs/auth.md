@@ -32,6 +32,15 @@ Aceita via `X-Admin-Key` ou `Authorization: Bearer <ADMIN_API_KEY>`. O Bull Boar
 
 Segredo compartilhado com sistemas externos que invocam `POST /webhooks/orders`, vem da env `WEBHOOK_SECRET` (mín 16 chars). Aceita via `X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`.
 
+### Multi-tenancy opcional via webhook
+
+O payload do webhook aceita um campo opcional `user_id` (UUID v4 de um usuário existente):
+
+- **Com `user_id`**: o pedido fica visível **apenas** pra esse usuário em GET /orders e GET /orders/:id. Outros users recebem 404 ao tentar acessar.
+- **Sem `user_id`**: o pedido é **global** — todos os usuários autenticados veem.
+
+Validamos que o `user_id` aponta pra um user existente; caso contrário a request retorna 422 com `errors.user.notFound` traduzido. Esse modelo casa com webhooks que vêm de marketplaces/tenants distintos sem forçar multi-tenancy completo: integrações públicas continuam funcionando sem alteração (omitindo o campo).
+
 ## Resumo
 
 | Tipo | Origem | Endpoints | Headers aceitos |

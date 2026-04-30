@@ -626,7 +626,7 @@
           "unit_price": {
             "type": "number",
             "example": 59.9,
-            "description": "Preço unitário em decimal (até 2 casas). É convertido para centavos internamente.",
+            "description": "Preço unitário em decimal (até 2 casas). É convertido para centavos internamente. Valor `0` é aceito intencionalmente para suportar brindes/promoções/itens grátis.",
             "minimum": 0,
             "maximum": 1000000
           }
@@ -663,6 +663,11 @@
             "type": "string",
             "example": "a3c1f2c0-8b6e-4f6f-92d4-22e5e1c4cdd9",
             "description": "Chave única por requisição lógica. A mesma chave + payload retorna a resposta original (replay)."
+          },
+          "user_id": {
+            "type": "string",
+            "example": "fbc7e5b2-5e7e-4e8e-9c5d-7c0a8d2b3e4f",
+            "description": "Opcional. UUID de um usuário existente. Quando informado, o pedido fica visível **apenas** para esse usuário em GET /orders. Quando ausente, o pedido é **global** (todos os usuários autenticados veem). Use isso pra rotular pedidos por marketplace/tenant; deixe em branco pra integrações públicas."
           }
         },
         "required": [

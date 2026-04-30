@@ -14,11 +14,13 @@
     "alreadyExists": "Já existe um pedido cadastrado com id externo {id}"
   },
   "user": {
-    "emailAlreadyExists": "Já existe um usuário cadastrado com o email {email}"
+    "emailAlreadyExists": "Já existe um usuário cadastrado com o email {email}",
+    "notFound": "Usuário com id {id} não encontrado"
   },
   "auth": {
     "missingApiKey": "Chave de API obrigatória (envie via Authorization: Bearer <chave> ou cabeçalho X-API-Key)",
     "invalidApiKey": "Chave de API inválida",
+    "missingAdminKeyBullBoard": "Chave administrativa obrigatória (envie via cabeçalho X-Admin-Key, Authorization: Bearer, query param ?admin_key=… ou cookie admin_key)",
     "missingAdminKey": "Chave administrativa obrigatória (envie via cabeçalho X-Admin-Key ou Authorization: Bearer <ADMIN_API_KEY>)",
     "invalidAdminKey": "Chave administrativa inválida",
     "missingWebhookSecret": "Segredo de webhook obrigatório (envie via cabeçalho X-Webhook-Secret ou Authorization: Bearer <WEBHOOK_SECRET>)",
@@ -26,7 +28,10 @@
     "invalidCredentials": "Email ou senha inválidos"
   },
   "enrichment": {
-    "failed": "Falha ao enriquecer o pedido após {attempts} tentativas",
+    "failed": {
+      "one": "Falha ao enriquecer o pedido após {count} tentativa",
+      "other": "Falha ao enriquecer o pedido após {count} tentativas"
+    },
     "exchangeRateUnavailable": "Serviço de cotação de câmbio indisponível",
     "invalidCurrency": "A moeda {currency} não é suportada pelo provedor de câmbio"
   }

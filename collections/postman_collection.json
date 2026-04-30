@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4789-aaaa-orchestrator0001",
     "name": "Order Orchestrator — Inbazz",
-    "description": "Coleção completa do desafio backend pleno (Inbazz). Cobre todos os endpoints com cenários de sucesso, falha e i18n.\n\n**Como usar:**\n\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável de coleção `baseUrl` aponta para `http://localhost:3000` (porta padrão do backend).\n3. Suba a infra: `docker compose up -d` (ou `docker compose up -d postgres redis && npm run start:dev` para rodar o backend localmente).\n4. **Preencha as variáveis de coleção** com os valores das envs correspondentes (no `.env` ou docker-compose):\n   - `adminKey` ← `ADMIN_API_KEY` (necessária para `POST /users` e Bull Board)\n   - `webhookSecret` ← `WEBHOOK_SECRET` (necessária para `POST /webhooks/orders`)\n5. Rode `npm run seed:users` (ou `docker compose exec app npm run seed:users`) para criar 3 usuários demo (pt-BR, en, es) — copie as 3 API keys impressas no console e cole nas variáveis `apiKeyPtBR`, `apiKeyEN` e `apiKeyES`.\n6. Use os endpoints autenticados — escolha qual variável de chave usar conforme o idioma desejado.\n\n**Estrutura:**\n- Health, Documentação, i18n: públicos.\n- POST /webhooks/orders: protegido por **webhook secret** (`X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`).\n- POST /users, /admin/queues: protegidos por **admin key** (`X-Admin-Key` ou `Authorization: Bearer <ADMIN_API_KEY>`).\n- GET /orders, GET /queue/metrics, POST /auth/login, POST /auth/rotate-api-key: protegidos por **API key de usuário** (`Authorization: Bearer` ou `X-API-Key`).",
+    "description": "Coleção completa do desafio backend pleno (Inbazz). Cobre todos os endpoints com cenários de sucesso, falha e i18n.\n\n**Como usar:**\n\n1. Importe esta coleção no Postman (Import → Files).\n2. A variável de coleção `baseUrl` aponta para `http://localhost:3000` (porta padrão do backend).\n3. Suba a infra: `docker compose up -d` (ou `docker compose up -d postgres redis && npm run start:dev` para rodar o backend localmente).\n4. **Preencha as variáveis de coleção** com os valores das envs correspondentes (no `.env` ou docker-compose):\n   - `adminKey` ← `ADMIN_API_KEY` (necessária para `POST /users` e Bull Board)\n   - `webhookSecret` ← `WEBHOOK_SECRET` (necessária para `POST /webhooks/orders`)\n5. Rode `npm run seed:users` (ou `docker compose exec app npm run seed:users`) para criar 3 usuários demo (pt-BR, en, es) — copie as 3 API keys impressas no console e cole nas variáveis `apiKeyPtBR`, `apiKeyEN` e `apiKeyES`.\n6. (Opcional, multi-tenancy) preencha `userId` com o ID de um dos usuários demo se quiser experimentar o cenário **'pedido com user_id'** — o pedido criado fica visível apenas pra esse user em GET /orders.\n7. Use os endpoints autenticados — escolha qual variável de chave usar conforme o idioma desejado.\n\n**Estrutura:**\n- Health, Documentação, i18n: públicos.\n- POST /webhooks/orders: protegido por **webhook secret** (`X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`). Aceita campo opcional `user_id` (UUID v4) — quando informado, o pedido é visível apenas pra esse user; quando omitido, é global.\n- POST /users, /admin/queues: protegidos por **admin key** (`X-Admin-Key` ou `Authorization: Bearer <ADMIN_API_KEY>`).\n- GET /orders, GET /orders/:id, GET /queue/metrics, POST /auth/login: protegidos por **API key de usuário** (`Authorization: Bearer` ou `X-API-Key`). Listagem aplica filtro de visibilidade automático: o user vê seus próprios pedidos + os globais (sem `user_id`).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -309,6 +309,103 @@
             },
             "description": "Esperado: **`401 Unauthorized`** — `POST /webhooks/orders` requer `X-Webhook-Secret` ou `Authorization: Bearer <WEBHOOK_SECRET>`."
           }
+        },
+        {
+          "name": "✓ Sucesso — pedido com user_id (multi-tenant, visível só pra esse user)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('orderId', 'ext-' + pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8));",
+                  "pm.variables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"user@example.com\", \"name\": \"Ana Silva\" },\n  \"items\": [{ \"sku\": \"ABC123\", \"qty\": 2, \"unit_price\": 59.90 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\",\n  \"user_id\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Esperado: **`202 Accepted`**. Quando o webhook informa `user_id` (UUID v4 de um usuário existente), o pedido fica visível **apenas** pra esse usuário em GET /orders e GET /orders/:id. Outros usuários autenticados recebem 404 ao tentar acessar.\n\n**Pré-requisito**: preencha a variável de coleção `userId` com o ID do usuário (consulte via banco ou via login). Se omitir o campo `user_id`, o pedido é global (todos os users autenticados veem)."
+          }
+        },
+        {
+          "name": "✗ Erro 422 — user_id aponta pra user inexistente",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('orderId', 'ext-' + pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8));",
+                  "pm.variables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" },
+              { "key": "Accept-Language", "value": "pt-BR" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"u@e.com\", \"name\": \"X\" },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 1 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\",\n  \"user_id\": \"99999999-9999-4999-9999-999999999999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Esperado: **`422 Unprocessable Entity`** com `Usuário com id ... não encontrado` (i18n via Accept-Language). UUID v4 sintaticamente válido mas não existe no banco — semanticamente inválido. Diferente de `user_id` malformado (que dá 400 no DTO)."
+          }
+        },
+        {
+          "name": "✗ Erro 400 — user_id malformado (não é UUID)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('orderId', 'ext-' + pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8));",
+                  "pm.variables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Webhook-Secret", "value": "{{webhookSecret}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"customer\": { \"email\": \"u@e.com\", \"name\": \"X\" },\n  \"items\": [{ \"sku\": \"X\", \"qty\": 1, \"unit_price\": 1 }],\n  \"currency\": \"USD\",\n  \"idempotency_key\": \"{{idemKey}}\",\n  \"user_id\": \"not-a-uuid\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "orders"]
+            },
+            "description": "Esperado: **`400 Bad Request`** com `user_id must be a valid UUID`. Validação síncrona do DTO (não chega no service). Se quiser desativar o tenant, omita o campo em vez de mandar string inválida."
+          }
         }
       ]
     },
@@ -363,16 +460,29 @@
           }
         },
         {
-          "name": "GET /orders/:id — pedido inexistente (404 traduzido pt-BR)",
+          "name": "✗ Erro 404 — pedido inexistente (i18n via preferredLanguage)",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyPtBR}}" }],
             "url": {
-              "raw": "{{baseUrl}}/orders/00000000-0000-0000-0000-000000000000",
+              "raw": "{{baseUrl}}/orders/99999999-9999-4999-9999-999999999999",
               "host": ["{{baseUrl}}"],
-              "path": ["orders", "00000000-0000-0000-0000-000000000000"]
+              "path": ["orders", "99999999-9999-4999-9999-999999999999"]
             },
-            "description": "Esperado: 404 com `Pedido com id ... não encontrado` (idioma resolvido pelo `preferredLanguage` do usuário autenticado)."
+            "description": "Esperado: **`404 Not Found`** com `Pedido com id ... não encontrado` (idioma resolvido pelo `preferredLanguage` do usuário autenticado, não pelo Accept-Language). UUID v4 sintaticamente válido mas inexistente. Também retorna 404 quando o pedido pertence a outro usuário (sem revelar a existência)."
+          }
+        },
+        {
+          "name": "✗ Erro 400 — UUID malformado em GET /orders/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{apiKeyPtBR}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders/not-a-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "not-a-uuid"]
+            },
+            "description": "Esperado: **`400 Bad Request`** com `Validation failed (uuid v 4 is expected)`. Validação síncrona do `ParseUUIDPipe({version:'4'})` antes de chegar no controller. UUIDs válidos mas inexistentes retornam 404 (ver item anterior)."
           }
         },
         {
@@ -550,6 +660,12 @@
       "value": "",
       "type": "string",
       "description": "Webhook secret — copie da env `WEBHOOK_SECRET` (no `.env` / docker-compose) e cole aqui. Necessária para POST /webhooks/orders."
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string",
+      "description": "Opcional. UUID v4 de um usuário existente. Usado pelo cenário **'pedido com user_id'** pra demonstrar multi-tenancy: quando preenchido, o pedido criado fica visível só pra esse user. Pegue o ID com `SELECT id FROM users WHERE email='demo-pt@inbazz.com'` ou via outra query."
     }
   ]
 }

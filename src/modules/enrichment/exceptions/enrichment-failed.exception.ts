@@ -5,6 +5,9 @@
  *
  * `serialize()` produz a string que vai pro banco; o mapper desserializa
  * na hora de traduzir. Usar JSON na coluna existente evita migration.
+ *
+ * O arg é `count` (não `attempts`) pra ativar a pluralização nativa do
+ * nestjs-i18n via `Intl.PluralRules` — ver `i18n/<lang>/errors.json`.
  */
 export class EnrichmentFailedException extends Error {
   readonly key = 'errors.enrichment.failed';
@@ -13,7 +16,7 @@ export class EnrichmentFailedException extends Error {
   constructor(attempts: number) {
     super(`Enrichment failed after ${attempts} attempts`);
     this.name = 'EnrichmentFailedException';
-    this.args = { attempts };
+    this.args = { count: attempts };
   }
 
   serialize(): string {

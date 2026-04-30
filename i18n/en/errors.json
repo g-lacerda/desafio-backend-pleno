@@ -14,11 +14,13 @@
     "alreadyExists": "An order with external id {id} already exists"
   },
   "user": {
-    "emailAlreadyExists": "A user with email {email} already exists"
+    "emailAlreadyExists": "A user with email {email} already exists",
+    "notFound": "User with id {id} not found"
   },
   "auth": {
     "missingApiKey": "API key is required (send via Authorization: Bearer <key> or X-API-Key header)",
     "invalidApiKey": "Invalid API key",
+    "missingAdminKeyBullBoard": "Admin key is required (send via X-Admin-Key header, Authorization: Bearer, ?admin_key=… query param, or admin_key cookie)",
     "missingAdminKey": "Admin key is required (send via X-Admin-Key header or Authorization: Bearer <ADMIN_API_KEY>)",
     "invalidAdminKey": "Invalid admin key",
     "missingWebhookSecret": "Webhook secret is required (send via X-Webhook-Secret header or Authorization: Bearer <WEBHOOK_SECRET>)",
@@ -26,7 +28,10 @@
     "invalidCredentials": "Invalid email or password"
   },
   "enrichment": {
-    "failed": "Failed to enrich order after {attempts} attempts",
+    "failed": {
+      "one": "Failed to enrich order after {count} attempt",
+      "other": "Failed to enrich order after {count} attempts"
+    },
     "exchangeRateUnavailable": "Exchange rate service is unavailable",
     "invalidCurrency": "Currency {currency} is not supported by the exchange rate provider"
   }

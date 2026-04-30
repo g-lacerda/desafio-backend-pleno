@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request, Response } from 'express';
-import { Observable, catchError, defer, from, of, switchMap, tap, throwError } from 'rxjs';
+import { EMPTY, Observable, catchError, defer, from, switchMap, tap, throwError } from 'rxjs';
 import { IDEMPOTENCY_KEY_FIELD } from './idempotency.constants';
 import { IdempotencyService } from './idempotency.service';
 
@@ -51,8 +51,14 @@ export class IdempotencyInterceptor implements NestInterceptor {
     return defer(() => from(this.idempotency.register(key, body))).pipe(
       switchMap((registration) => {
         if (!registration.isFirst && registration.cached) {
+          // Replay byte-a-byte: escrevemos a string JSON cacheada direto no
+          // socket pra preservar exatamente os bytes/ordem de chaves da resposta
+          // original. Retornar `EMPTY` evita que o Nest serialize de novo (o que
+          // reordenaria as chaves) — `res.send` já encerra a resposta.
           res.status(registration.cached.status);
-          return of(registration.cached.body);
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.send(registration.cached.body);
+          return EMPTY;
         }
 
         return next.handle().pipe(
@@ -60,12 +66,15 @@ export class IdempotencyInterceptor implements NestInterceptor {
             next: (response) => {
               const status = res.statusCode;
               const orderId = this.extractOrderId(response);
-              this.idempotency.complete(key, { status, body: response }, orderId).catch((err) => {
-                this.logger.error(
-                  { key, err: (err as Error).message },
-                  'Failed to persist idempotency completion',
-                );
-              });
+              const bodyText = JSON.stringify(response);
+              this.idempotency
+                .complete(key, { status, body: bodyText }, orderId)
+                .catch((err) => {
+                  this.logger.error(
+                    { key, err: (err as Error).message },
+                    'Failed to persist idempotency completion',
+                  );
+                });
             },
           }),
           catchError((err) => {

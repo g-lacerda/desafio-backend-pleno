@@ -20,7 +20,7 @@ describe('IdempotencyService', () => {
     requestHash: 'hash-1',
     status: IdempotencyStatus.COMPLETED,
     responseStatus: 202,
-    responseBody: { id: 'ord-1' } as unknown as IdempotencyKey['responseBody'],
+    responseBody: '{"id":"ord-1"}',
     orderId: 'ord-1',
     createdAt: new Date(Date.now() - 1000),
     completedAt: new Date(Date.now() - 500),
@@ -68,7 +68,7 @@ describe('IdempotencyService', () => {
       const result = await service.register('key-1', payload);
 
       expect(result.isFirst).toBe(false);
-      expect(result.cached).toEqual({ status: 202, body: { id: 'ord-1' } });
+      expect(result.cached).toEqual({ status: 202, body: '{"id":"ord-1"}' });
     });
 
     it('lança DuplicateIdempotencyKeyException quando hash diverge', async () => {
@@ -143,7 +143,7 @@ describe('IdempotencyService', () => {
     it('atualiza status pra COMPLETED com response body e orderId', async () => {
       prisma.idempotencyKey.update.mockResolvedValue(undefined);
 
-      await service.complete('key-1', { status: 202, body: { id: 'ord-1' } }, 'ord-1');
+      await service.complete('key-1', { status: 202, body: '{"id":"ord-1"}' }, 'ord-1');
 
       expect(prisma.idempotencyKey.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -151,6 +151,7 @@ describe('IdempotencyService', () => {
           data: expect.objectContaining({
             status: IdempotencyStatus.COMPLETED,
             responseStatus: 202,
+            responseBody: '{"id":"ord-1"}',
             orderId: 'ord-1',
           }),
         }),

@@ -26,6 +26,10 @@ export class UsersRepository {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
+  findById(id: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id } });
+  }
+
   updateApiKeyHash(userId: string, apiKeyHash: string): Promise<User> {
     return this.prisma.user.update({
       where: { id: userId },

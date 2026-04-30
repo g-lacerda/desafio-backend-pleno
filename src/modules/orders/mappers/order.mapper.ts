@@ -36,6 +36,7 @@ export class OrderMapper {
       items: items as unknown as Prisma.InputJsonValue,
       currency: dto.currency,
       totalOriginalCents,
+      userId: dto.user_id ?? null,
     };
   }
 

@@ -24,6 +24,7 @@ describe('EnrichmentService', () => {
     conversionRateMicros: null,
     status: OrderStatus.RECEIVED,
     failureReason: null,
+    userId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

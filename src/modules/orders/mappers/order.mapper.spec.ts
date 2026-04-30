@@ -64,6 +64,7 @@ describe('OrderMapper', () => {
         failureReason: null,
         createdAt: new Date('2026-04-28T12:00:00.000Z'),
         updatedAt: new Date('2026-04-28T12:00:00.000Z'),
+        userId: null,
       };
 
       const response = OrderMapper.toResponse(order);
@@ -99,6 +100,7 @@ describe('OrderMapper', () => {
         failureReason: null,
         createdAt: new Date('2026-04-28T12:00:00.000Z'),
         updatedAt: new Date('2026-04-28T12:00:00.000Z'),
+        userId: null,
       };
 
       const response = OrderMapper.toResponse(order);
@@ -123,6 +125,7 @@ describe('OrderMapper', () => {
         failureReason: 'errors.enrichment.failed',
         createdAt: new Date('2026-04-28T12:00:00.000Z'),
         updatedAt: new Date('2026-04-28T12:00:00.000Z'),
+        userId: null,
       };
 
       const response = OrderMapper.toResponse(
@@ -148,6 +151,7 @@ describe('OrderMapper', () => {
         failureReason: 'errors.enrichment.failed',
         createdAt: new Date('2026-04-28T12:00:00.000Z'),
         updatedAt: new Date('2026-04-28T12:00:00.000Z'),
+        userId: null,
       };
 
       const response = OrderMapper.toResponse(order);

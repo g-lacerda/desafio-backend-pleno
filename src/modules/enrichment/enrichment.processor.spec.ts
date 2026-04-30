@@ -90,7 +90,7 @@ describe('EnrichmentProcessor', () => {
 
       expect(orders.markFailedEnrichment).toHaveBeenCalledWith(
         'ord-1',
-        JSON.stringify({ key: 'errors.enrichment.failed', args: { attempts: 3 } }),
+        JSON.stringify({ key: 'errors.enrichment.failed', args: { count: 3 } }),
       );
       expect(dlq.add).toHaveBeenCalledWith(
         expect.any(String),

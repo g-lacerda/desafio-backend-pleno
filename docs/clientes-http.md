@@ -26,7 +26,18 @@ A coleção Postman foi **curada à mão** e tem mais cenários explícitos (rep
 4. Cole as 3 API keys impressas nas variáveis `apiKeyPtBR`, `apiKeyEN`, `apiKeyES` da coleção.
 5. Use os endpoints. As mensagens de erro virão no idioma do usuário escolhido.
 
-A coleção tem 7 cenários de webhook deixando explícito o status code esperado em cada um (✓ 202 sucesso, ⚠ 202 + DLQ assíncrono, ✗ 400/401/422), além de cenários de auth, consulta e métricas.
+A coleção tem **10** cenários de webhook deixando explícito o status code esperado em cada um (✓ 202 sucesso / ✓ 202 com user_id multi-tenant / ⚠ 202 + DLQ assíncrono / ✗ 400/401/422), além de cenários de auth, consulta com isolamento por user e métricas.
+
+### Multi-tenancy opcional (variável `userId`)
+
+A coleção inclui um cenário `✓ Sucesso — pedido com user_id` que demonstra o isolamento opcional: webhook informa `user_id` e o pedido fica visível apenas pra esse user em GET /orders. Pra testar:
+
+1. Pegue o ID de um usuário existente (ex.: `SELECT id FROM users WHERE email='demo-pt@inbazz.com'` direto no banco).
+2. Cole na variável de coleção `userId`.
+3. Rode o cenário com `user_id` preenchido → ver o pedido aparecer **só** pelo `apiKeyPtBR` (quando configurado pro user PT).
+4. Rode `GET /orders` autenticado como outro user (`apiKeyEN`) e confirme que o pedido **não** aparece.
+
+Quem omitir `user_id` no webhook continua criando pedidos globais (visíveis pra todos).
 
 ---
 
@@ -75,6 +86,7 @@ Independente do cliente:
 | `adminKey` | `ADMIN_API_KEY` do `.env` | `.env` ou docker-compose |
 | `webhookSecret` | `WEBHOOK_SECRET` do `.env` | `.env` ou docker-compose |
 | `apiKeyPtBR` / `apiKeyEN` / `apiKeyES` | Chaves dos usuários demo | Output de `npm run seed:users` |
+| `userId` (opcional) | UUID v4 de um user existente | `SELECT id FROM users WHERE email='demo-pt@inbazz.com'` |
 
 ---
 

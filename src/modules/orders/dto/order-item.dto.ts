@@ -18,7 +18,9 @@ export class OrderItemDto {
 
   @ApiProperty({
     example: 59.9,
-    description: 'Preço unitário em decimal (até 2 casas). É convertido para centavos internamente.',
+    description:
+      'Preço unitário em decimal (até 2 casas). É convertido para centavos internamente. ' +
+      'Valor `0` é aceito intencionalmente para suportar brindes/promoções/itens grátis.',
     minimum: 0,
     maximum: 1_000_000,
   })
@@ -27,6 +29,7 @@ export class OrderItemDto {
     { allowNaN: false, allowInfinity: false, maxDecimalPlaces: 2 },
     { message: i18n('validation.maxDecimalPlaces') },
   )
+  // 0 é permitido (brinde / promoção / item grátis) — não usar @Min(0.01).
   @Min(0, { message: i18n('validation.min') })
   @Max(1_000_000, { message: i18n('validation.max') })
   unit_price!: number;

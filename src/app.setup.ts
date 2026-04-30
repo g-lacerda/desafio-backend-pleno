@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { I18nValidationExceptionFilter, I18nValidationPipe } from 'nestjs-i18n';
+import { I18nService, I18nValidationExceptionFilter, I18nValidationPipe } from 'nestjs-i18n';
 
 const BEARER_PREFIX = /^Bearer\s+/i;
 
@@ -47,6 +47,8 @@ export function setupApp(app: INestApplication): void {
   //   4. Cookie `admin_key` (setado automaticamente após (3) — permite que os
   //      AJAX internos do Bull Board funcionem nas requisições subsequentes)
   const adminKey = app.get(ConfigService).getOrThrow<string>('ADMIN_API_KEY');
+  const i18n = app.get(I18nService);
+  const fallbackLang = process.env.DEFAULT_LANGUAGE ?? 'en';
   const expressInstance = app.getHttpAdapter().getInstance() as {
     use: (path: string, handler: unknown) => unknown;
   };
@@ -59,10 +61,17 @@ export function setupApp(app: INestApplication): void {
     ) => {
       const provided = extractAdminKey(req);
       if (!provided || provided !== adminKey) {
+        // Resolve a lang manualmente — middleware Express não passa pelo
+        // pipeline Nest, então `I18nContext.current()` não existe aqui.
+        const lang = pickLang(req.headers['accept-language'], fallbackLang);
+        // Type-cast: nestjs-i18n exige tipos gerados via CLI pra resolver `Path<K>`,
+        // que aqui é `never`. Como a chave existe nos 3 errors.json, contornamos.
+        const message = (
+          i18n as unknown as { translate(k: string, o?: { lang?: string }): string }
+        ).translate('errors.auth.missingAdminKeyBullBoard', { lang });
         res.status(401).json({
           statusCode: 401,
-          message:
-            'Admin key required. Send via X-Admin-Key/Authorization header, ?admin_key=... query param, or admin_key cookie.',
+          message: typeof message === 'string' ? message : 'Admin key required',
           error: 'Unauthorized',
         });
         return;
@@ -116,6 +125,31 @@ function parseCookie(
     if (k === name && v !== undefined) return decodeURIComponent(v);
   }
   return null;
+}
+
+const SUPPORTED_LANGS = ['pt-BR', 'en', 'es'];
+
+/**
+ * Parser mínimo de Accept-Language pro middleware do Bull Board (que roda
+ * fora do pipeline Nest). Pega o primeiro idioma suportado em ordem de q,
+ * caso contrário usa o fallback. Suporta tanto `pt-BR` quanto `pt`.
+ */
+function pickLang(header: string | string[] | undefined, fallback: string): string {
+  if (typeof header !== 'string' || header.length === 0) return fallback;
+  const candidates = header
+    .split(',')
+    .map((part) => part.split(';')[0].trim())
+    .filter(Boolean);
+  for (const cand of candidates) {
+    const exact = SUPPORTED_LANGS.find((l) => l.toLowerCase() === cand.toLowerCase());
+    if (exact) return exact;
+    const prefix = cand.split('-')[0].toLowerCase();
+    const prefixMatch = SUPPORTED_LANGS.find(
+      (l) => l.split('-')[0].toLowerCase() === prefix,
+    );
+    if (prefixMatch) return prefixMatch;
+  }
+  return fallback;
 }
 
 /**

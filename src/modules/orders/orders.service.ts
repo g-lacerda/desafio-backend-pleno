@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { I18nContext, I18nService } from 'nestjs-i18n';
+import { UserNotFoundException } from '@/modules/users/exceptions/user-not-found.exception';
+import { UsersService } from '@/modules/users/users.service';
 import { MetricsService } from '@/shared/metrics/metrics.service';
 import { ENRICHMENT_JOB_NAME, QUEUE_ENRICHMENT } from '@/shared/queue/queue.constants';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -13,7 +15,7 @@ import { OrderResponseDto } from './dto/order-response.dto';
 import { OrderAlreadyExistsException } from './exceptions/order-already-exists.exception';
 import { OrderNotFoundException } from './exceptions/order-not-found.exception';
 import { OrderMapper } from './mappers/order.mapper';
-import { OrderRepository } from './repositories/order.repository';
+import { OrderRepository, visibilityFilter } from './repositories/order.repository';
 
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
 
@@ -29,12 +31,21 @@ export class OrdersService {
     config: ConfigService,
     private readonly i18n: I18nService,
     private readonly metrics: MetricsService,
+    private readonly users: UsersService,
   ) {
     this.maxAttempts = config.getOrThrow<number>('ENRICHMENT_MAX_ATTEMPTS');
     this.backoffBaseMs = config.getOrThrow<number>('ENRICHMENT_BACKOFF_BASE_MS');
   }
 
   async receive(dto: CreateOrderDto): Promise<OrderResponseDto> {
+    // Se o webhook informou user_id, valida que o usuário existe — caso contrário
+    // a FK do banco lançaria erro genérico. 422 é mais apropriado que 400 porque
+    // o payload é sintaticamente válido (UUID), mas semanticamente inválido.
+    if (dto.user_id) {
+      const user = await this.users.findById(dto.user_id);
+      if (!user) throw new UserNotFoundException(dto.user_id);
+    }
+
     const data = OrderMapper.fromDto(dto);
     let order;
     try {
@@ -66,10 +77,17 @@ export class OrdersService {
     return OrderMapper.toResponse(order, this.makeTranslator());
   }
 
-  async findAll(query: ListOrdersQueryDto, lang?: string): Promise<ListOrdersResponseDto> {
+  async findAll(
+    query: ListOrdersQueryDto,
+    currentUserId: string,
+    lang?: string,
+  ): Promise<ListOrdersResponseDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const where = query.status ? { status: query.status } : undefined;
+    const visibility = visibilityFilter(currentUserId);
+    const where: Prisma.OrderWhereInput = query.status
+      ? { ...visibility, status: query.status }
+      : visibility;
 
     const translate = this.makeTranslator(lang);
     const [orders, total] = await Promise.all([
@@ -83,8 +101,8 @@ export class OrdersService {
     };
   }
 
-  async findById(id: string, lang?: string): Promise<OrderResponseDto> {
-    const order = await this.repository.findById(id);
+  async findById(id: string, currentUserId: string, lang?: string): Promise<OrderResponseDto> {
+    const order = await this.repository.findVisibleById(id, currentUserId);
     if (!order) throw new OrderNotFoundException(id);
     return OrderMapper.toResponse(order, this.makeTranslator(lang));
   }
@@ -117,6 +135,11 @@ export class OrdersService {
           const rawArgs = (parsed as { args?: unknown }).args;
           if (rawArgs && typeof rawArgs === 'object') {
             args = rawArgs as Record<string, unknown>;
+            // Back-compat: orders persistidos antes da migração pra plural usavam
+            // `attempts`. nestjs-i18n exige `count` pra ativar Intl.PluralRules.
+            if (args.count === undefined && typeof args.attempts === 'number') {
+              args = { ...args, count: args.attempts };
+            }
           }
         }
       } catch {

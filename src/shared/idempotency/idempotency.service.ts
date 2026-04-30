@@ -8,9 +8,14 @@ import { IdempotencyInProgressException } from './exceptions/idempotency-in-prog
 
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
 
+/**
+ * Body é a string JSON CRUA exatamente como foi enviada ao cliente na primeira
+ * resposta — preservada na coluna `responseBody` (texto, não jsonb) pra que o
+ * replay devolva os mesmos bytes na mesma ordem de chaves.
+ */
 export interface CachedResponse {
   status: number;
-  body: unknown;
+  body: string;
 }
 
 export interface RegisterResult {
@@ -74,7 +79,7 @@ export class IdempotencyService {
             requestHash,
             status: IdempotencyStatus.IN_PROGRESS,
             responseStatus: null,
-            responseBody: Prisma.JsonNull,
+            responseBody: null,
             orderId: null,
             completedAt: null,
             expiresAt,
@@ -95,7 +100,7 @@ export class IdempotencyService {
         isFirst: false,
         cached: {
           status: existing.responseStatus ?? 200,
-          body: existing.responseBody as unknown,
+          body: existing.responseBody ?? 'null',
         },
       };
     }
@@ -111,7 +116,7 @@ export class IdempotencyService {
       data: {
         status: IdempotencyStatus.COMPLETED,
         responseStatus: response.status,
-        responseBody: (response.body ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        responseBody: response.body,
         orderId,
         completedAt: new Date(),
       },

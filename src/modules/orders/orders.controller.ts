@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiNotFoundResponse,
@@ -29,14 +29,17 @@ export class OrdersController {
     @Query() query: ListOrdersQueryDto,
     @CurrentUser() user: User,
   ): Promise<ListOrdersResponseDto> {
-    return this.orders.findAll(query, languageDbToTag(user.preferredLanguage));
+    return this.orders.findAll(query, user.id, languageDbToTag(user.preferredLanguage));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Retorna um pedido pelo ID' })
   @ApiOkResponse({ type: OrderResponseDto })
   @ApiNotFoundResponse({ description: 'Pedido não encontrado.' })
-  findById(@Param('id') id: string, @CurrentUser() user: User): Promise<OrderResponseDto> {
-    return this.orders.findById(id, languageDbToTag(user.preferredLanguage));
+  findById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() user: User,
+  ): Promise<OrderResponseDto> {
+    return this.orders.findById(id, user.id, languageDbToTag(user.preferredLanguage));
   }
 }
